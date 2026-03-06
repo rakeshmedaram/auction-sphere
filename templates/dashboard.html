@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<h3>My Auctions</h3>
+<a href="/create" class="btn btn-primary">Create Auction</a><br><br>
+<ul>
+{% for a in auctions %}
+<li>{{ a.title }} - ₹{{ a.base_price }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

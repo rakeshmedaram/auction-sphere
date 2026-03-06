@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Admin Panel</h2>
+<h4>Users</h4>
+<ul>
+{% for u in users %}
+<li>{{ u.username }} - {{ u.email }}</li>
+{% endfor %}
+</ul>
+<h4>Auctions</h4>
+<ul>
+{% for a in auctions %}
+<li>{{ a.title }} | Winner: {{ a.winner_id }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

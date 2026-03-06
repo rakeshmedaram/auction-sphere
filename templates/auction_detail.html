@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>{{ auction.title }}</h2>
+<img src="{{ url_for('static', filename='uploads/' + auction.image) }}" width="300"><br>
+<p>{{ auction.description }}</p>
+
+<p>Base: ₹{{ auction.base_price }}</p>
+<p>Highest: ₹{{ highest_bid }}</p>
+
+<h4>Time Left: <span id="timer"></span></h4>
+
+{% if auction.winner_id %}
+<p class="text-success">🏆 Winner: User {{ auction.winner_id }}</p>
+{% endif %}
+
+{% if auction.end_time > now and auction.owner_id != current_user.id %}
+<form method="POST">
+<input type="number" name="bid_amount" class="form-control" required><br>
+<button class="btn btn-warning">Bid</button>
+</form>
+{% endif %}
+
+<ul>
+{% for bid in bids %}
+<li>₹{{ bid.amount }}</li>
+{% endfor %}
+</ul>
+
+<script>
+const endTime = new Date("{{ auction.end_time.isoformat() }}").getTime();
+setInterval(function(){
+let now = new Date().getTime();
+let d = endTime - now;
+if(d<=0){document.getElementById("timer").innerHTML="Ended";return;}
+let h=Math.floor(d/(1000*60*60));
+let m=Math.floor((d%(1000*60*60))/(1000*60));
+let s=Math.floor((d%(1000*60))/1000);
+document.getElementById("timer").innerHTML=h+"h "+m+"m "+s+"s";
+},1000);
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Auctions</h2>
+<div class="row">
+{% for auction in auctions %}
+<div class="col-md-4">
+<div class="card p-2">
+<img src="{{ url_for('static', filename='uploads/' + auction.image) }}" height="200">
+<h4>{{ auction.title }}</h4>
+<p>₹{{ auction.base_price }}</p>
+<a href="/auction/{{ auction.id }}" class="btn btn-primary">View</a>
+</div>
+</div>
+{% endfor %}
+</div>
+{% endblock %}
