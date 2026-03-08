@@ -1,4 +1,4 @@
-import streamlit_app as st
+import streamlit as st
 
 st.title("Auction Sphere - Online Auction System")
 
@@ -12,7 +12,7 @@ if st.button("Create Auction"):
 
 st.header("Place Bid")
 
-bid = st.number_input("Enter your bid amount")
+bid = st.number_input("Enter Bid Amount")
 
 if st.button("Submit Bid"):
     st.success(f"Bid placed: ₹{bid}")
