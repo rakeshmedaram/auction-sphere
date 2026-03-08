@@ -95,11 +95,8 @@ def logout():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-
-    auctions = Auction.query.filter_by(user_id=current_user.id).all()
-
+    auctions = Auction.query.all()
     return render_template("dashboard.html", auctions=auctions)
-
 
 # Create Auction
 @app.route("/create_auction", methods=["GET", "POST"])
