@@ -1,10 +1,41 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+
 {% block content %}
-<h3>My Auctions</h3>
-<a href="/create" class="btn btn-primary">Create Auction</a><br><br>
-<ul>
-{% for a in auctions %}
-<li>{{ a.title }} - ₹{{ a.base_price }}</li>
+
+<h2 class="mb-4">My Auctions</h2>
+
+<a href="/create-auction" class="btn btn-primary mb-3">Create Auction</a>
+
+<div class="row">
+
+{% for auction in auctions %}
+<div class="col-md-4">
+
+<div class="card shadow-sm mb-4">
+
+{% if auction.image %}
+<img src="{{ url_for('static', filename='uploads/' + auction.image) }}" class="card-img-top">
+{% endif %}
+
+<div class="card-body">
+
+<h5 class="card-title">{{ auction.title }}</h5>
+
+<p class="card-text">
+Starting Price: ₹{{ auction.starting_price }}
+</p>
+
+<a href="/auction/{{ auction.id }}" class="btn btn-outline-dark btn-sm">
+View Auction
+</a>
+
+</div>
+
+</div>
+
+</div>
 {% endfor %}
-</ul>
+
+</div>
+
 {% endblock %}

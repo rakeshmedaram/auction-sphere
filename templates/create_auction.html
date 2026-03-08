@@ -1,11 +1,33 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+
 {% block content %}
+
+<h2>Create Auction</h2>
+
 <form method="POST" enctype="multipart/form-data">
-<input name="title" class="form-control" placeholder="Title" required><br>
-<textarea name="description" class="form-control"></textarea><br>
-<input name="base_price" type="number" class="form-control"><br>
-<input name="end_time" type="datetime-local" class="form-control"><br>
-<input type="file" name="image" class="form-control" required><br>
-<button class="btn btn-success">Create</button>
+
+<div class="mb-3">
+<label class="form-label">Title</label>
+<input type="text" name="title" class="form-control" required>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Description</label>
+<textarea name="description" class="form-control"></textarea>
+</div>
+
+<div class="mb-3">
+<label class="form-label">Starting Price</label>
+<input type="number" name="starting_price" class="form-control">
+</div>
+
+<div class="mb-3">
+<label class="form-label">Upload Image</label>
+<input type="file" name="image" class="form-control">
+</div>
+
+<button class="btn btn-success">Create Auction</button>
+
 </form>
+
 {% endblock %}
