@@ -1,48 +1,56 @@
 from flask import Flask, render_template, redirect, url_for, request, flash
-from models import db, User, Auction, Bid
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
 
+from models import db, User, Auction, Bid
+
 app = Flask(__name__)
 
-# ---------------- CONFIG ----------------
 app.config['SECRET_KEY'] = 'auctionsecret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///auction.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db.init_app(app)
 
-# ---------------- LOGIN MANAGER ----------------
-login_manager = LoginManager()
-login_manager.init_app(app)
+login_manager = LoginManager(app)
 login_manager.login_view = "login"
+
 
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
 
-# ---------------- HOME PAGE ----------------
+# Create database tables
+with app.app_context():
+    db.create_all()
+
+
+# Home page
 @app.route("/")
 def index():
     auctions = Auction.query.all()
     return render_template("index.html", auctions=auctions)
 
 
-# ---------------- REGISTER ----------------
-@app.route("/register", methods=["GET","POST"])
+# Register
+@app.route("/register", methods=["GET", "POST"])
 def register():
 
     if request.method == "POST":
 
         username = request.form["username"]
         password = generate_password_hash(request.form["password"])
+
+        existing = User.query.filter_by(username=username).first()
+
+        if existing:
+            flash("Username already exists")
+            return redirect(url_for("register"))
 
         user = User(username=username, password=password)
 
@@ -54,130 +62,28 @@ def register():
 
     return render_template("register.html")
 
-# ---------------- LOGIN ----------------
-@app.route("/login", methods=["GET","POST"])
+
+# Login
+@app.route("/login", methods=["GET", "POST"])
 def login():
+
     if request.method == "POST":
 
-        user = User.query.filter_by(email=request.form["email"]).first()
+        username = request.form["username"]
+        password = request.form["password"]
 
-        if user and check_password_hash(user.password, request.form["password"]):
+        user = User.query.filter_by(username=username).first()
+
+        if user and check_password_hash(user.password, password):
             login_user(user)
             return redirect(url_for("dashboard"))
-
-        flash("Invalid email or password")
+        else:
+            flash("Invalid username or password")
 
     return render_template("login.html")
 
 
-# ---------------- DASHBOARD ----------------
-@app.route("/dashboard")
-@login_required
-def dashboard():
-    auctions = Auction.query.filter_by(owner_id=current_user.id).all()
-    return render_template("dashboard.html", auctions=auctions)
-
-
-# ---------------- CREATE AUCTION ----------------
-@app.route("/create", methods=["GET","POST"])
-@login_required
-def create_auction():
-
-    if request.method == "POST":
-
-        file = request.files["image"]
-        filename = secure_filename(file.filename)
-
-        filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-        file.save(filepath)
-
-        auction = Auction(
-            title=request.form["title"],
-            description=request.form["description"],
-            base_price=float(request.form["base_price"]),
-            end_time=datetime.strptime(request.form["end_time"], "%Y-%m-%dT%H:%M"),
-            owner_id=current_user.id,
-            image=filename
-        )
-
-        db.session.add(auction)
-        db.session.commit()
-
-        return redirect(url_for("dashboard"))
-
-    return render_template("create_auction.html")
-
-
-# ---------------- AUCTION DETAILS ----------------
-@app.route("/auction/<int:auction_id>", methods=["GET","POST"])
-@login_required
-def auction_detail(auction_id):
-
-    auction = Auction.query.get_or_404(auction_id)
-
-    bids = Bid.query.filter_by(
-        auction_id=auction.id
-    ).order_by(Bid.amount.desc()).all()
-
-    highest_bid = bids[0].amount if bids else auction.base_price
-
-    now = datetime.now()
-
-    # decide winner if auction ended
-    if auction.end_time < now and auction.winner_id is None and bids:
-        auction.winner_id = bids[0].user_id
-        db.session.commit()
-
-    if request.method == "POST":
-
-        if auction.owner_id == current_user.id:
-            flash("You cannot bid on your own auction")
-
-        elif auction.end_time < now:
-            flash("Auction already ended")
-
-        else:
-            amount = float(request.form["bid_amount"])
-
-            if amount > highest_bid:
-                bid = Bid(
-                    amount=amount,
-                    user_id=current_user.id,
-                    auction_id=auction.id
-                )
-
-                db.session.add(bid)
-                db.session.commit()
-
-                return redirect(url_for("auction_detail", auction_id=auction.id))
-
-            else:
-                flash("Bid must be higher than current bid")
-
-    return render_template(
-        "auction_detail.html",
-        auction=auction,
-        bids=bids,
-        highest_bid=highest_bid,
-        now=now
-    )
-
-
-# ---------------- ADMIN ----------------
-@app.route("/admin")
-@login_required
-def admin():
-
-    if not current_user.is_admin:
-        return "Access Denied"
-
-    users = User.query.all()
-    auctions = Auction.query.all()
-
-    return render_template("admin.html", users=users, auctions=auctions)
-
-
-# ---------------- LOGOUT ----------------
+# Logout
 @app.route("/logout")
 @login_required
 def logout():
@@ -185,11 +91,78 @@ def logout():
     return redirect(url_for("index"))
 
 
-# ---------------- DATABASE INIT ----------------
-with app.app_context():
-    db.create_all()
+# Dashboard
+@app.route("/dashboard")
+@login_required
+def dashboard():
+
+    auctions = Auction.query.filter_by(user_id=current_user.id).all()
+
+    return render_template("dashboard.html", auctions=auctions)
 
 
-# ---------------- RUN ----------------
+# Create Auction
+@app.route("/create_auction", methods=["GET", "POST"])
+@login_required
+def create_auction():
+
+    if request.method == "POST":
+
+        title = request.form["title"]
+        description = request.form["description"]
+        price = request.form["starting_price"]
+
+        image_file = request.files["image"]
+
+        filename = None
+
+        if image_file:
+            filename = secure_filename(image_file.filename)
+            image_file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+
+        auction = Auction(
+            title=title,
+            description=description,
+            starting_price=price,
+            image=filename,
+            user_id=current_user.id
+        )
+
+        db.session.add(auction)
+        db.session.commit()
+
+        flash("Auction created successfully")
+
+        return redirect(url_for("dashboard"))
+
+    return render_template("create_auction.html")
+
+
+# Auction details
+@app.route("/auction/<int:auction_id>", methods=["GET", "POST"])
+def auction_detail(auction_id):
+
+    auction = Auction.query.get_or_404(auction_id)
+
+    if request.method == "POST":
+
+        amount = request.form["bid_amount"]
+
+        bid = Bid(
+            amount=amount,
+            user_id=current_user.id,
+            auction_id=auction.id
+        )
+
+        db.session.add(bid)
+        db.session.commit()
+
+        flash("Bid placed successfully!")
+
+    bids = Bid.query.filter_by(auction_id=auction.id).order_by(Bid.amount.desc()).all()
+
+    return render_template("auction_detail.html", auction=auction, bids=bids)
+
+
 if __name__ == "__main__":
     app.run(debug=True)
