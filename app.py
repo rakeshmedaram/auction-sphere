@@ -38,27 +38,21 @@ def index():
 # ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET","POST"])
 def register():
+
     if request.method == "POST":
 
-        existing = User.query.filter_by(email=request.form["email"]).first()
-        if existing:
-            flash("Email already registered")
-            return redirect(url_for("register"))
+        username = request.form["username"]
+        password = generate_password_hash(request.form["password"])
 
-        user = User(
-            username=request.form["username"],
-            email=request.form["email"],
-            password=generate_password_hash(request.form["password"])
-        )
+        user = User(username=username, password=password)
 
         db.session.add(user)
         db.session.commit()
 
-        flash("Registration successful. Please login.")
+        flash("Registration successful!")
         return redirect(url_for("login"))
 
     return render_template("register.html")
-
 
 # ---------------- LOGIN ----------------
 @app.route("/login", methods=["GET","POST"])
