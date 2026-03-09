@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from models import db, User, Auction, Bid
+from mail_config import mail
+from flask_mail import Message
 from datetime import datetime
 import os
 
@@ -11,11 +13,18 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///auction.db"
 
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-UPLOAD_FOLDER = "static/uploads"
+# Email configuration (example Gmail)
+app.config["MAIL_SERVER"] = "smtp.gmail.com"
+app.config["MAIL_PORT"] = 587
+app.config["MAIL_USE_TLS"] = True
+app.config["MAIL_USERNAME"] = "youremail@gmail.com"
+app.config["MAIL_PASSWORD"] = "your_app_password"
 
+UPLOAD_FOLDER = "static/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 db.init_app(app)
+mail.init_app(app)
 
 with app.app_context():
     db.create_all()
@@ -37,12 +46,14 @@ def register():
     if request.method == "POST":
 
         username = request.form["username"]
+        email = request.form["email"]
         password = request.form["password"]
 
-        if User.query.filter_by(username=username).first():
-            return "Username already exists"
-
-        user = User(username=username,password=password)
+        user = User(
+            username=username,
+            email=email,
+            password=password
+        )
 
         db.session.add(user)
         db.session.commit()
@@ -58,10 +69,10 @@ def login():
 
     if request.method == "POST":
 
-        username = request.form["username"]
+        email = request.form["email"]
         password = request.form["password"]
 
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(email=email).first()
 
         if user and user.password == password:
 
@@ -72,21 +83,9 @@ def login():
     return render_template("login.html")
 
 
-# LOGOUT
-@app.route("/logout")
-def logout():
-
-    session.clear()
-
-    return redirect(url_for("index"))
-
-
 # DASHBOARD
 @app.route("/dashboard")
 def dashboard():
-
-    if "user_id" not in session:
-        return redirect(url_for("login"))
 
     auctions = Auction.query.all()
 
@@ -97,32 +96,22 @@ def dashboard():
 @app.route("/create-auction", methods=["GET","POST"])
 def create_auction():
 
-    if "user_id" not in session:
-        return redirect(url_for("login"))
-
     if request.method == "POST":
 
         title = request.form["title"]
         description = request.form["description"]
         price = request.form["price"]
 
-        image_file = request.files["image"]
-
-        filename = ""
-
-        if image_file:
-
-            filename = image_file.filename
-
-            image_file.save(
-                os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            )
+        end_time = datetime.strptime(
+            request.form["end_time"],
+            "%Y-%m-%dT%H:%M"
+        )
 
         auction = Auction(
             title=title,
             description=description,
             starting_price=price,
-            image=filename,
+            end_time=end_time,
             user_id=session["user_id"]
         )
 
@@ -151,11 +140,14 @@ def auction_detail(id):
 
     message = ""
 
+    auction_ended = datetime.utcnow() > auction.end_time
+
     if request.method == "POST":
 
         amount = float(request.form["bid_amount"])
 
         if amount <= highest_bid:
+
             message = "Bid must be higher than current highest bid"
 
         else:
@@ -169,9 +161,10 @@ def auction_detail(id):
             db.session.add(bid)
             db.session.commit()
 
-            return redirect(url_for("auction_detail", id=id))
+            # send email notification
+            send_bid_email(auction.title, amount)
 
-    auction_ended = datetime.utcnow() > auction.end_time
+            return redirect(url_for("auction_detail", id=id))
 
     return render_template(
         "auction_detail.html",
@@ -184,25 +177,38 @@ def auction_detail(id):
     )
 
 
-# ADMIN PANEL
-@app.route("/admin")
-def admin():
+# EMAIL FUNCTION
+def send_bid_email(auction_title, amount):
 
-    if "user_id" not in session:
-        return redirect(url_for("login"))
+    msg = Message(
+        "New Bid Placed",
+        sender="youremail@gmail.com",
+        recipients=["youremail@gmail.com"]
+    )
 
-    user = User.query.get(session["user_id"])
+    msg.body = f"A new bid of ₹{amount} was placed on {auction_title}"
 
-    if not user.is_admin:
-        return "Access denied"
+    mail.send(msg)
 
-    users = User.query.all()
-    auctions = Auction.query.all()
+
+# ANALYTICS DASHBOARD
+@app.route("/analytics")
+def analytics():
+
+    total_users = User.query.count()
+
+    total_auctions = Auction.query.count()
+
+    total_bids = Bid.query.count()
+
+    highest_bid = db.session.query(db.func.max(Bid.amount)).scalar()
 
     return render_template(
-        "admin.html",
-        users=users,
-        auctions=auctions
+        "analytics.html",
+        total_users=total_users,
+        total_auctions=total_auctions,
+        total_bids=total_bids,
+        highest_bid=highest_bid
     )
 
 

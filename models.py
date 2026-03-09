@@ -1,14 +1,17 @@
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, timedelta
+from datetime import datetime
 
 db = SQLAlchemy()
 
 class User(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
 
-    username = db.Column(db.String(100), unique=True, nullable=False)
+    username = db.Column(db.String(100))
 
-    password = db.Column(db.String(200), nullable=False)
+    email = db.Column(db.String(120), unique=True)
+
+    password = db.Column(db.String(200))
 
     is_admin = db.Column(db.Boolean, default=False)
 
@@ -17,7 +20,7 @@ class Auction(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
-    title = db.Column(db.String(200), nullable=False)
+    title = db.Column(db.String(200))
 
     description = db.Column(db.Text)
 
@@ -27,10 +30,7 @@ class Auction(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    end_time = db.Column(
-        db.DateTime,
-        default=lambda: datetime.utcnow() + timedelta(hours=24)
-    )
+    end_time = db.Column(db.DateTime)
 
     user_id = db.Column(db.Integer)
 

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2>Auction Analytics Dashboard</h2>
+
+<div class="row">
+
+<div class="col-md-3">
+<div class="card p-3">
+<h5>Total Users</h5>
+<h3>{{ total_users }}</h3>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card p-3">
+<h5>Total Auctions</h5>
+<h3>{{ total_auctions }}</h3>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card p-3">
+<h5>Total Bids</h5>
+<h3>{{ total_bids }}</h3>
+</div>
+</div>
+
+<div class="col-md-3">
+<div class="card p-3">
+<h5>Highest Bid</h5>
+<h3>₹{{ highest_bid }}</h3>
+</div>
+</div>
+
+</div>
+
+{% endblock %}

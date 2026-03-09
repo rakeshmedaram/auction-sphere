@@ -6,15 +6,41 @@
 
 <form method="POST" enctype="multipart/form-data">
 
-<input type="text" name="title" class="form-control mb-3" placeholder="Title" required>
+<input type="text"
+name="title"
+class="form-control mb-3"
+placeholder="Title"
+required>
 
-<textarea name="description" class="form-control mb-3" placeholder="Description"></textarea>
+<textarea
+name="description"
+class="form-control mb-3"
+placeholder="Description">
+</textarea>
 
-<input type="number" name="price" class="form-control mb-3" placeholder="Starting Price" required>
+<input
+type="number"
+name="price"
+class="form-control mb-3"
+placeholder="Starting Price"
+required>
 
-<input type="file" name="image" class="form-control mb-3">
+<label>Auction End Date & Time</label>
 
-<button class="btn btn-primary">Create Auction</button>
+<input
+type="datetime-local"
+name="end_time"
+class="form-control mb-3"
+required>
+
+<input
+type="file"
+name="image"
+class="form-control mb-3">
+
+<button class="btn btn-primary">
+Create Auction
+</button>
 
 </form>
 
