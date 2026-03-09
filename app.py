@@ -1,14 +1,18 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from models import db, User, Auction, Bid
+from datetime import datetime
 import os
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = "secretkey"
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///auction.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config["SECRET_KEY"] = "secret"
+
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///auction.db"
+
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 UPLOAD_FOLDER = "static/uploads"
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 db.init_app(app)
@@ -20,12 +24,14 @@ with app.app_context():
 # HOME
 @app.route("/")
 def index():
+
     auctions = Auction.query.all()
+
     return render_template("index.html", auctions=auctions)
 
 
 # REGISTER
-@app.route("/register", methods=["GET", "POST"])
+@app.route("/register", methods=["GET","POST"])
 def register():
 
     if request.method == "POST":
@@ -33,7 +39,10 @@ def register():
         username = request.form["username"]
         password = request.form["password"]
 
-        user = User(username=username, password=password)
+        if User.query.filter_by(username=username).first():
+            return "Username already exists"
+
+        user = User(username=username,password=password)
 
         db.session.add(user)
         db.session.commit()
@@ -44,7 +53,7 @@ def register():
 
 
 # LOGIN
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login", methods=["GET","POST"])
 def login():
 
     if request.method == "POST":
@@ -55,7 +64,9 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if user and user.password == password:
+
             session["user_id"] = user.id
+
             return redirect(url_for("dashboard"))
 
     return render_template("login.html")
@@ -64,7 +75,9 @@ def login():
 # LOGOUT
 @app.route("/logout")
 def logout():
+
     session.clear()
+
     return redirect(url_for("index"))
 
 
@@ -81,7 +94,7 @@ def dashboard():
 
 
 # CREATE AUCTION
-@app.route("/create-auction", methods=["GET", "POST"])
+@app.route("/create-auction", methods=["GET","POST"])
 def create_auction():
 
     if "user_id" not in session:
@@ -94,12 +107,16 @@ def create_auction():
         price = request.form["price"]
 
         image_file = request.files["image"]
+
         filename = ""
 
         if image_file:
+
             filename = image_file.filename
-            path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            image_file.save(path)
+
+            image_file.save(
+                os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            )
 
         auction = Auction(
             title=title,
@@ -117,30 +134,76 @@ def create_auction():
     return render_template("create_auction.html")
 
 
-# VIEW AUCTION
-@app.route("/auction/<int:auction_id>", methods=["GET", "POST"])
-def auction_detail(auction_id):
+# AUCTION DETAIL
+@app.route("/auction/<int:id>", methods=["GET","POST"])
+def auction_detail(id):
 
-    auction = Auction.query.get_or_404(auction_id)
+    auction = Auction.query.get_or_404(id)
 
-    bids = Bid.query.filter_by(auction_id=auction_id).all()
+    bids = Bid.query.filter_by(auction_id=id).all()
+
+    if bids:
+        highest_bid = max([bid.amount for bid in bids])
+        winner = max(bids, key=lambda x: x.amount).user
+    else:
+        highest_bid = auction.starting_price
+        winner = None
+
+    message = ""
 
     if request.method == "POST":
 
-        amount = request.form["bid_amount"]
+        amount = float(request.form["bid_amount"])
 
-        bid = Bid(
-            amount=amount,
-            user_id=session["user_id"],
-            auction_id=auction_id
-        )
+        if amount <= highest_bid:
+            message = "Bid must be higher than current highest bid"
 
-        db.session.add(bid)
-        db.session.commit()
+        else:
 
-        return redirect(url_for("auction_detail", auction_id=auction_id))
+            bid = Bid(
+                amount=amount,
+                auction_id=id,
+                user_id=session["user_id"]
+            )
 
-    return render_template("auction_detail.html", auction=auction, bids=bids)
+            db.session.add(bid)
+            db.session.commit()
+
+            return redirect(url_for("auction_detail", id=id))
+
+    auction_ended = datetime.utcnow() > auction.end_time
+
+    return render_template(
+        "auction_detail.html",
+        auction=auction,
+        bids=bids,
+        highest_bid=highest_bid,
+        message=message,
+        auction_ended=auction_ended,
+        winner=winner
+    )
+
+
+# ADMIN PANEL
+@app.route("/admin")
+def admin():
+
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    user = User.query.get(session["user_id"])
+
+    if not user.is_admin:
+        return "Access denied"
+
+    users = User.query.all()
+    auctions = Auction.query.all()
+
+    return render_template(
+        "admin.html",
+        users=users,
+        auctions=auctions
+    )
 
 
 if __name__ == "__main__":

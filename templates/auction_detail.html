@@ -2,8 +2,6 @@
 
 {% block content %}
 
-<div class="container mt-4">
-
 <h2>{{ auction.title }}</h2>
 
 {% if auction.image %}
@@ -12,15 +10,34 @@
 
 <p>{{ auction.description }}</p>
 
-<p><strong>Starting Price:</strong> ₹{{ auction.starting_price }}</p>
+<p>Starting Price: ₹{{ auction.starting_price }}</p>
 
-<hr>
+<h4>Highest Bid</h4>
 
-<h4>Place a Bid</h4>
+<p class="text-success fw-bold">₹{{ highest_bid }}</p>
+
+{% if message %}
+<div class="alert alert-danger">{{ message }}</div>
+{% endif %}
+
+{% if auction_ended %}
+
+<div class="alert alert-success">
+
+🏆 Winner: {{ winner.username }}  
+Winning Bid: ₹{{ highest_bid }}
+
+</div>
+
+{% endif %}
 
 <form method="POST">
 
-<input type="number" name="bid_amount" class="form-control" placeholder="Enter bid amount" required>
+<input type="number"
+name="bid_amount"
+class="form-control"
+min="{{ highest_bid + 1 }}"
+required>
 
 <button class="btn btn-primary mt-2">Place Bid</button>
 
@@ -30,16 +47,58 @@
 
 <h4>Bid History</h4>
 
+<table class="table">
+
+<tr>
+<th>User</th>
+<th>Bid</th>
+</tr>
+
 {% for bid in bids %}
 
-<p>₹{{ bid.amount }}</p>
+<tr>
 
-{% else %}
+<td>{{ bid.user.username }}</td>
 
-<p>No bids yet</p>
+<td>₹{{ bid.amount }}</td>
+
+</tr>
 
 {% endfor %}
 
-</div>
+</table>
+
+<hr>
+
+<h4>Auction Ends In</h4>
+
+<p id="countdown"></p>
+
+<script>
+
+setInterval(function(){
+location.reload();
+},5000);
+
+var endTime = new Date("{{ auction.end_time }}").getTime();
+
+var x = setInterval(function(){
+
+var now = new Date().getTime();
+
+var distance = endTime - now;
+
+var hours = Math.floor((distance % (1000*60*60*24))/(1000*60*60));
+
+var minutes = Math.floor((distance % (1000*60*60))/(1000*60));
+
+var seconds = Math.floor((distance % (1000*60))/1000);
+
+document.getElementById("countdown").innerHTML =
+hours+"h "+minutes+"m "+seconds+"s";
+
+},1000);
+
+</script>
 
 {% endblock %}
