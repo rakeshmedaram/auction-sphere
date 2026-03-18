@@ -2,103 +2,145 @@
 
 {% block content %}
 
-<h2>{{ auction.title }}</h2>
+<div class="card shadow-lg p-4">
+
+<div class="row">
+
+<div class="col-md-5">
 
 {% if auction.image %}
-<img src="{{ url_for('static', filename='uploads/' + auction.image) }}" width="350">
+<img src="{{ url_for('static', filename='uploads/' ~ auction.image) }}"
+class="img-fluid rounded">
+{% else %}
+<img src="https://via.placeholder.com/400" class="img-fluid rounded">
 {% endif %}
 
-<p>{{ auction.description }}</p>
+</div>
 
-<p>Starting Price: ₹{{ auction.starting_price }}</p>
+<div class="col-md-7">
 
-<h4>Highest Bid</h4>
+<h2>{{ auction.title }}</h2>
 
-<p class="text-success fw-bold">₹{{ highest_bid }}</p>
+<p><strong>Starting Price:</strong> ₹{{ auction.price }}</p>
 
-{% if message %}
-<div class="alert alert-danger">{{ message }}</div>
+<h4 class="text-success">
+Highest Bid: ₹{{ highest_bid }}
+</h4>
+
+<!-- 👤 TOP BIDDER -->
+{% if highest_user %}
+<p><strong>Top Bidder:</strong> {{ highest_user.username }}</p>
 {% endif %}
 
+<!-- ⏳ TIMER -->
+<p id="timer" class="text-danger fw-bold"></p>
+
+<!-- 🏆 WINNER -->
 {% if auction_ended %}
 
 <div class="alert alert-success">
 
-🏆 Winner: {{ winner.username }}  
-Winning Bid: ₹{{ highest_bid }}
+<h4>🏆 Auction Completed</h4>
+
+{% if winner %}
+<p><strong>Winner:</strong> {{ winner.username }}</p>
+<p><strong>Winning Bid:</strong> ₹{{ highest_bid }}</p>
+{% else %}
+<p>No bids placed</p>
+{% endif %}
 
 </div>
 
 {% endif %}
 
+<!-- 🎉 YOU WON -->
+{% if auction_ended and winner and winner.id == current_user.id %}
+<div class="alert alert-info">
+🎉 You won this auction!
+</div>
+{% endif %}
+
+<!-- 💰 BID FORM -->
+{% if not auction_ended %}
+
 <form method="POST">
 
 <input type="number"
-name="bid_amount"
+name="amount"
 class="form-control"
 min="{{ highest_bid + 1 }}"
+placeholder="Enter your bid"
 required>
 
-<button class="btn btn-primary mt-2">Place Bid</button>
+<button class="btn btn-primary mt-2 w-100">
+Place Bid
+</button>
 
 </form>
 
+{% else %}
+
+<button class="btn btn-secondary mt-2 w-100" disabled>
+Auction Ended
+</button>
+
+{% endif %}
+
+</div>
+
+</div>
+
 <hr>
 
-<h4>Bid History</h4>
+<!-- 📊 BID HISTORY -->
+<h4>📊 Bid History</h4>
 
-<table class="table">
-
-<tr>
-<th>User</th>
-<th>Bid</th>
-</tr>
+<ul class="list-group">
 
 {% for bid in bids %}
 
-<tr>
+<li class="list-group-item d-flex justify-content-between">
 
-<td>{{ bid.user.username }}</td>
+₹{{ bid.amount }}
 
-<td>₹{{ bid.amount }}</td>
+<span class="badge bg-dark">
+{{ bid.user.username }}
+</span>
 
-</tr>
+</li>
 
 {% endfor %}
 
-</table>
+</ul>
 
-<hr>
+</div>
 
-<h4>Auction Ends In</h4>
-
-<p id="countdown"></p>
-
+<!-- 🔴 AUTO REFRESH -->
 <script>
+setInterval(() => location.reload(), 5000);
+</script>
 
-setInterval(function(){
-location.reload();
-},5000);
-
+<!-- ⏳ TIMER -->
+<script>
 var endTime = new Date("{{ auction.end_time }}").getTime();
 
-var x = setInterval(function(){
-
+setInterval(function(){
 var now = new Date().getTime();
-
 var distance = endTime - now;
 
-var hours = Math.floor((distance % (1000*60*60*24))/(1000*60*60));
+if(distance <= 0){
+document.getElementById("timer").innerHTML = "⛔ Auction Ended";
+return;
+}
 
-var minutes = Math.floor((distance % (1000*60*60))/(1000*60));
+var h = Math.floor(distance/(1000*60*60));
+var m = Math.floor((distance%(1000*60*60))/(1000*60));
+var s = Math.floor((distance%(1000*60))/1000);
 
-var seconds = Math.floor((distance % (1000*60))/1000);
-
-document.getElementById("countdown").innerHTML =
-hours+"h "+minutes+"m "+seconds+"s";
+document.getElementById("timer").innerHTML =
+"⏳ Ends in: " + h+"h "+m+"m "+s+"s";
 
 },1000);
-
 </script>
 
 {% endblock %}

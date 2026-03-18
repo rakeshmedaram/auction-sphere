@@ -2,37 +2,47 @@
 
 {% block content %}
 
-<h2>Auction Analytics Dashboard</h2>
+<h2 class="mb-4">📊 Analytics Dashboard</h2>
 
-<div class="row">
-
-<div class="col-md-3">
-<div class="card p-3">
-<h5>Total Users</h5>
-<h3>{{ total_users }}</h3>
-</div>
-</div>
+<div class="row text-center">
 
 <div class="col-md-3">
-<div class="card p-3">
-<h5>Total Auctions</h5>
-<h3>{{ total_auctions }}</h3>
+<div class="card p-3 shadow">
+<h4>{{ total_auctions }}</h4>
+<p>Total Auctions</p>
 </div>
 </div>
 
 <div class="col-md-3">
-<div class="card p-3">
-<h5>Total Bids</h5>
-<h3>{{ total_bids }}</h3>
+<div class="card p-3 shadow">
+<h4>{{ total_bids }}</h4>
+<p>Total Bids</p>
 </div>
 </div>
 
 <div class="col-md-3">
-<div class="card p-3">
-<h5>Highest Bid</h5>
-<h3>₹{{ highest_bid }}</h3>
+<div class="card p-3 shadow">
+<h4>{{ total_users }}</h4>
+<p>Total Users</p>
 </div>
 </div>
+
+<div class="col-md-3">
+<div class="card p-3 shadow">
+<h4>₹{{ highest_bid }}</h4>
+<p>Highest Bid</p>
+</div>
+</div>
+
+</div>
+
+<hr>
+
+<div class="card p-4 mt-4 shadow">
+
+<h4>👤 Your Activity</h4>
+
+<p>You created <strong>{{ my_auctions }}</strong> auctions</p>
 
 </div>
 

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card p-4 shadow text-center">
+
+<h2>👤 Profile</h2>
+
+<hr>
+
+<p><strong>Username:</strong> {{ current_user.username }}</p>
+<p><strong>Email:</strong> {{ current_user.email }}</p>
+
+<a href="/dashboard" class="btn btn-primary mt-3">Back to Dashboard</a>
+
+</div>
+
+{% endblock %}

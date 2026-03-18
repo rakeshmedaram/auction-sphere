@@ -1,216 +1,302 @@
-from flask import Flask, render_template, request, redirect, url_for, session
-from models import db, User, Auction, Bid
-from mail_config import mail
-from flask_mail import Message
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_mail import Mail, Message
 from datetime import datetime
 import os
 
 app = Flask(__name__)
+app.secret_key = 'secret'
 
-app.config["SECRET_KEY"] = "secret"
+# ================= DATABASE =================
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///auction.db'
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///auction.db"
+db = SQLAlchemy(app)
 
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+# ================= LOGIN =================
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-# Email configuration (example Gmail)
-app.config["MAIL_SERVER"] = "smtp.gmail.com"
-app.config["MAIL_PORT"] = 587
-app.config["MAIL_USE_TLS"] = True
-app.config["MAIL_USERNAME"] = "youremail@gmail.com"
-app.config["MAIL_PASSWORD"] = "your_app_password"
+# ================= EMAIL CONFIG =================
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'medaramrakesh286@gmail.com'
+app.config['MAIL_PASSWORD'] = 'jesk esfn kflr dbhn'  # 🔥 use Gmail App Password
 
-UPLOAD_FOLDER = "static/uploads"
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+mail = Mail(app)
 
-db.init_app(app)
-mail.init_app(app)
+# ================= EMAIL FUNCTION =================
+def send_email(to, subject, body):
+    try:
+        msg = Message(subject,
+                      sender=app.config['MAIL_USERNAME'],
+                      recipients=[to])
+        msg.body = body
+        mail.send(msg)
+    except Exception as e:
+        print("Email Error:", e)
 
-with app.app_context():
-    db.create_all()
+# ================= MODELS =================
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(100))
+    email = db.Column(db.String(100), unique=True)
+    password = db.Column(db.String(100))
 
 
-# HOME
-@app.route("/")
+class Auction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200))
+    price = db.Column(db.Float)
+    image = db.Column(db.String(200))
+    end_time = db.Column(db.DateTime)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+
+class Bid(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    amount = db.Column(db.Float)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    auction_id = db.Column(db.Integer, db.ForeignKey('auction.id'))
+
+    user = db.relationship('User')
+
+
+# ================= LOGIN =================
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+# ================= ROUTES =================
+
+@app.route('/')
 def index():
-
     auctions = Auction.query.all()
+    return render_template('index.html', auctions=auctions)
 
-    return render_template("index.html", auctions=auctions)
 
-
-# REGISTER
-@app.route("/register", methods=["GET","POST"])
+# ---------- REGISTER ----------
+@app.route('/register', methods=['GET','POST'])
 def register():
+    if request.method == 'POST':
 
-    if request.method == "POST":
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
 
-        username = request.form["username"]
-        email = request.form["email"]
-        password = request.form["password"]
+        if User.query.filter_by(email=email).first():
+            flash("Email already exists")
+            return redirect('/register')
 
-        user = User(
-            username=username,
-            email=email,
-            password=password
-        )
-
+        user = User(username=username, email=email, password=password)
         db.session.add(user)
         db.session.commit()
 
-        return redirect(url_for("login"))
+        # 📧 EMAIL
+        send_email(
+            email,
+            "Welcome to Auction Sphere 🎉",
+            f"Hello {username},\n\nYour account has been created successfully!"
+        )
 
-    return render_template("register.html")
+        return redirect('/login')
+
+    return render_template('register.html')
 
 
-# LOGIN
-@app.route("/login", methods=["GET","POST"])
+# ---------- LOGIN ----------
+@app.route('/login', methods=['GET','POST'])
 def login():
+    if request.method == 'POST':
 
-    if request.method == "POST":
+        email = request.form.get('email')
+        password = request.form.get('password')
 
-        email = request.form["email"]
-        password = request.form["password"]
+        user = User.query.filter_by(email=email, password=password).first()
 
-        user = User.query.filter_by(email=email).first()
+        if user:
+            login_user(user)
 
-        if user and user.password == password:
+            # 📧 EMAIL
+            send_email(
+                user.email,
+                "Login Alert 🔐",
+                f"Hello {user.username},\n\nYou just logged into Auction Sphere."
+            )
 
-            session["user_id"] = user.id
+            return redirect('/dashboard')
 
-            return redirect(url_for("dashboard"))
+        else:
+            flash("Invalid login")
 
-    return render_template("login.html")
+    return render_template('login.html')
 
 
-# DASHBOARD
-@app.route("/dashboard")
+# ---------- LOGOUT ----------
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect('/')
+
+
+# ---------- DASHBOARD ----------
+@app.route('/dashboard')
+@login_required
 def dashboard():
-
-    auctions = Auction.query.all()
-
-    return render_template("dashboard.html", auctions=auctions)
+    auctions = Auction.query.filter_by(user_id=current_user.id).all()
+    return render_template('dashboard.html', auctions=auctions)
 
 
-# CREATE AUCTION
-@app.route("/create-auction", methods=["GET","POST"])
+# ---------- CREATE AUCTION ----------
+@app.route('/create-auction', methods=['GET','POST'])
+@login_required
 def create_auction():
 
-    if request.method == "POST":
+    if request.method == 'POST':
 
-        title = request.form["title"]
-        description = request.form["description"]
-        price = request.form["price"]
+        title = request.form.get('title')
+        price = request.form.get('price')
+        end_time = request.form.get('end_time')
 
-        end_time = datetime.strptime(
-            request.form["end_time"],
-            "%Y-%m-%dT%H:%M"
-        )
+        image = request.files.get('image')
+        filename = None
+
+        if image and image.filename != "":
+            filename = image.filename
+            image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
         auction = Auction(
             title=title,
-            description=description,
-            starting_price=price,
-            end_time=end_time,
-            user_id=session["user_id"]
+            price=float(price),
+            image=filename,
+            end_time=datetime.strptime(end_time, '%Y-%m-%dT%H:%M'),
+            user_id=current_user.id
         )
 
         db.session.add(auction)
         db.session.commit()
 
-        return redirect(url_for("dashboard"))
+        # 📧 EMAIL
+        send_email(
+            current_user.email,
+            "Auction Created 🏆",
+            f"Hello {current_user.username},\n\nYour auction '{title}' has been created successfully!"
+        )
 
-    return render_template("create_auction.html")
+        return redirect('/dashboard')
+
+    return render_template('create_auction.html')
 
 
-# AUCTION DETAIL
-@app.route("/auction/<int:id>", methods=["GET","POST"])
+# ---------- AUCTION DETAIL + BIDDING ----------
+@app.route('/auction/<int:id>', methods=['GET','POST'])
+@login_required
 def auction_detail(id):
 
     auction = Auction.query.get_or_404(id)
 
-    bids = Bid.query.filter_by(auction_id=id).all()
+    highest_bid = db.session.query(db.func.max(Bid.amount))\
+        .filter_by(auction_id=id).scalar()
 
-    if bids:
-        highest_bid = max([bid.amount for bid in bids])
-        winner = max(bids, key=lambda x: x.amount).user
-    else:
-        highest_bid = auction.starting_price
-        winner = None
+    if highest_bid is None:
+        highest_bid = auction.price
 
-    message = ""
+    # PLACE BID
+    if request.method == 'POST':
 
-    auction_ended = datetime.utcnow() > auction.end_time
+        amount = request.form.get('amount')
 
-    if request.method == "POST":
+        if amount:
+            amount = float(amount)
 
-        amount = float(request.form["bid_amount"])
+            if amount > highest_bid:
 
-        if amount <= highest_bid:
+                bid = Bid(
+                    amount=amount,
+                    user_id=current_user.id,
+                    auction_id=id
+                )
 
-            message = "Bid must be higher than current highest bid"
+                db.session.add(bid)
+                db.session.commit()
 
-        else:
+                return redirect(url_for('auction_detail', id=id))
 
-            bid = Bid(
-                amount=amount,
-                auction_id=id,
-                user_id=session["user_id"]
-            )
+            else:
+                flash("Bid must be higher!")
 
-            db.session.add(bid)
-            db.session.commit()
+    bids = Bid.query.filter_by(auction_id=id).order_by(Bid.amount.desc()).all()
 
-            # send email notification
-            send_bid_email(auction.title, amount)
+    highest_bid = db.session.query(db.func.max(Bid.amount))\
+        .filter_by(auction_id=id).scalar() or auction.price
 
-            return redirect(url_for("auction_detail", id=id))
+    highest_bid_obj = Bid.query.filter_by(
+        auction_id=id,
+        amount=highest_bid
+    ).first()
+
+    highest_user = highest_bid_obj.user if highest_bid_obj else None
+
+    # WINNER LOGIC
+    auction_ended = datetime.now() > auction.end_time
+    winner = highest_user if auction_ended else None
+
+    # 📧 WINNER EMAIL
+    if auction_ended and winner:
+        send_email(
+            winner.email,
+            "You Won the Auction 🎉",
+            f"Congratulations {winner.username}!\n\nYou won '{auction.title}' with ₹{highest_bid}"
+        )
 
     return render_template(
-        "auction_detail.html",
+        'auction_detail.html',
         auction=auction,
         bids=bids,
         highest_bid=highest_bid,
-        message=message,
-        auction_ended=auction_ended,
-        winner=winner
+        highest_user=highest_user,
+        winner=winner,
+        auction_ended=auction_ended
     )
 
 
-# EMAIL FUNCTION
-def send_bid_email(auction_title, amount):
-
-    msg = Message(
-        "New Bid Placed",
-        sender="youremail@gmail.com",
-        recipients=["youremail@gmail.com"]
-    )
-
-    msg.body = f"A new bid of ₹{amount} was placed on {auction_title}"
-
-    mail.send(msg)
+# ---------- PROFILE ----------
+@app.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html')
 
 
-# ANALYTICS DASHBOARD
-@app.route("/analytics")
+# ---------- ANALYTICS ----------
+@app.route('/analytics')
+@login_required
 def analytics():
 
-    total_users = User.query.count()
-
     total_auctions = Auction.query.count()
-
     total_bids = Bid.query.count()
-
-    highest_bid = db.session.query(db.func.max(Bid.amount)).scalar()
+    total_users = User.query.count()
+    highest_bid = db.session.query(db.func.max(Bid.amount)).scalar() or 0
+    my_auctions = Auction.query.filter_by(user_id=current_user.id).count()
 
     return render_template(
-        "analytics.html",
-        total_users=total_users,
+        'analytics.html',
         total_auctions=total_auctions,
         total_bids=total_bids,
-        highest_bid=highest_bid
+        total_users=total_users,
+        highest_bid=highest_bid,
+        my_auctions=my_auctions
     )
 
 
-if __name__ == "__main__":
+# ================= RUN =================
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
     app.run(debug=True)

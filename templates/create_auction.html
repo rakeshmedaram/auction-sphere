@@ -2,46 +2,38 @@
 
 {% block content %}
 
+<div class="card shadow p-4">
+
 <h2>Create Auction</h2>
 
 <form method="POST" enctype="multipart/form-data">
 
-<input type="text"
-name="title"
-class="form-control mb-3"
-placeholder="Title"
-required>
+<div class="mb-3">
+<label>Title</label>
+<input type="text" name="title" class="form-control" required>
+</div>
 
-<textarea
-name="description"
-class="form-control mb-3"
-placeholder="Description">
-</textarea>
+<div class="mb-3">
+<label>Starting Price</label>
+<input type="number" name="price" class="form-control" required>
+</div>
 
-<input
-type="number"
-name="price"
-class="form-control mb-3"
-placeholder="Starting Price"
-required>
+<div class="mb-3">
+<label>End Date & Time</label>
+<input type="datetime-local" name="end_time" class="form-control" required>
+</div>
 
-<label>Auction End Date & Time</label>
+<div class="mb-3">
+<label>Upload Image</label>
+<input type="file" name="image" class="form-control">
+</div>
 
-<input
-type="datetime-local"
-name="end_time"
-class="form-control mb-3"
-required>
-
-<input
-type="file"
-name="image"
-class="form-control mb-3">
-
-<button class="btn btn-primary">
+<button class="btn btn-success w-100">
 Create Auction
 </button>
 
 </form>
+
+</div>
 
 {% endblock %}
