@@ -1,3 +1,6 @@
-*.db
-instance/
 __pycache__/
+*.pyc
+instance/
+.env
+*.db
+uploads/
