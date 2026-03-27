@@ -218,50 +218,31 @@ def profile():
                            my_bids=my_bids,
                            winning=winning)
 
-@app.route('/bid/<int:auction_id>', methods=['POST'])
+@app.route('/delete/<int:auction_id>', methods=['POST'])
 @login_required
-def place_bid(auction_id):
+def delete_auction(auction_id):
 
     auction = Auction.query.get_or_404(auction_id)
 
-    # 🔥 ALWAYS RECHECK CURRENT TIME (UTC SAFE)
-    now = datetime.utcnow()
+    # 🔐 ONLY OWNER CAN DELETE
+    if auction.owner_id != current_user.id:
+        flash("❌ Unauthorized")
+        return redirect(url_for('home'))
 
-    if auction.end_time is None:
-        flash("Invalid auction")
+    # ❌ BLOCK DELETE IF ACTIVE WITH BIDS
+    if auction.bids and auction.end_time > datetime.utcnow():
+        flash("❌ Cannot delete active auction with bids")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
-    # ❌ BLOCK BIDDING AFTER END
-    if now >= auction.end_time:
-        flash("⛔ Auction already ended")
-        return redirect(url_for('auction_details', auction_id=auction_id))
+    # ✅ DELETE BIDS FIRST (IMPORTANT)
+    for bid in auction.bids:
+        db.session.delete(bid)
 
-    try:
-        bid_amount = float(request.form['amount'])
-    except:
-        flash("Invalid bid amount")
-        return redirect(url_for('auction_details', auction_id=auction_id))
-
-    # ❌ LOWER BID BLOCK
-    if bid_amount <= auction.current_price:
-        flash("Bid must be higher than current price")
-        return redirect(url_for('auction_details', auction_id=auction_id))
-
-    # ✅ SAVE BID
-    bid = Bid(
-        amount=bid_amount,
-        user_id=current_user.id,
-        auction_id=auction.id
-    )
-
-    auction.current_price = bid_amount
-
-    db.session.add(bid)
+    db.session.delete(auction)
     db.session.commit()
 
-    flash("✅ Bid placed successfully!")
-    return redirect(url_for('auction_details', auction_id=auction_id))
-# ---------------- SOCKET ----------------
+    flash("🗑️ Auction deleted")
+    return redirect(url_for('home'))# ---------------- SOCKET ----------------
 
 @socketio.on('place_bid')
 def handle_bid(data):
