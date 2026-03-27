@@ -2,12 +2,12 @@
 
 {% block content %}
 
-<div style="max-width:1000px; margin:auto; padding:20px;">
+<div style="max-width:1000px; margin:auto;">
 
     <div style="display:flex; gap:40px; flex-wrap:wrap; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
         <!-- 🖼 IMAGE -->
-        <div style="flex:1; min-width:300px;">
+        <div style="flex:1;">
             {% if auction.image %}
                 <img src="{{ url_for('static', filename='uploads/' + auction.image) }}"
                      style="width:100%; border-radius:10px;">
@@ -17,8 +17,8 @@
             {% endif %}
         </div>
 
-        <!-- 👉 DETAILS -->
-        <div style="flex:1; min-width:300px;">
+        <!-- 📄 DETAILS -->
+        <div style="flex:1;">
 
             <h2>{{ auction.title }}</h2>
             <p>{{ auction.description }}</p>
@@ -39,119 +39,71 @@
                 {% endif %}
             </p>
 
-            <!-- ⏳ TIMER -->
-            <p id="timer" data-end="{{ auction.end_time.isoformat() if auction.end_time else '' }}"></p>
+            <!-- ⏳ TIME -->
+            <p><b>Ends at:</b> {{ auction.end_time }}</p>
 
             <!-- 🏆 WINNER -->
-            <div id="winnerBox" style="margin-top:10px; font-weight:bold; color:green;"></div>
+            {% if winner %}
+                <p style="color:green; font-weight:bold;">
+                    🏆 Winner: {{ winner }}
+                </p>
+            {% endif %}
 
-            <!-- 🗑 DELETE BUTTON -->
+            <!-- 🗑 DELETE -->
             {% if current_user.is_authenticated and auction.owner_id == current_user.id %}
             <form method="POST" action="{{ url_for('delete_auction', auction_id=auction.id) }}"
-                  onsubmit="return confirm('Delete this auction?')"
-                  style="margin-top:10px;">
+                  onsubmit="return confirm('Delete this auction?')">
                 <button style="background:red; color:white; padding:8px; border:none; border-radius:6px;">
-                    🗑️ Delete Auction
+                    Delete Auction
                 </button>
             </form>
             {% endif %}
 
             <!-- 💰 BID FORM -->
-            <div id="bidSection" style="margin-top:20px;">
+            {% if not auction.end_time or now < auction.end_time %}
 
-                {% if auction.end_time and auction.end_time > now %}
+            <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}" style="margin-top:15px;">
 
-                <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}">
-                    
-                    <input type="number"
-                           name="amount"
-                           min="{{ auction.current_price + 1 }}"
-                           required
-                           placeholder="Enter bid"
-                           style="padding:10px; border-radius:6px; border:1px solid #ccc;">
+                <input type="number"
+                       name="bid_amount"
+                       min="{{ auction.current_price + 1 }}"
+                       placeholder="Enter bid"
+                       required
+                       style="padding:10px; border-radius:6px; border:1px solid #ccc;">
 
-                    <button type="submit"
-                            style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:6px;">
-                        Place Bid
-                    </button>
+                <button type="submit"
+                        style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:6px;">
+                    Place Bid
+                </button>
 
-                </form>
+            </form>
 
-                {% else %}
-                    <p style="color:red; font-weight:bold;">⛔ Auction Ended</p>
-                {% endif %}
-
-            </div>
+            {% else %}
+                <p style="color:red; font-weight:bold;">⛔ Auction Ended</p>
+            {% endif %}
 
         </div>
 
     </div>
 
     <!-- 📜 BID HISTORY -->
-    <div style="margin-top:20px; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+    <div style="margin-top:20px; background:white; padding:20px; border-radius:12px;">
 
         <h3>📜 Bid History</h3>
 
-        <ul style="list-style:none; padding:0;">
-
-            {% for bid in auction.bids|reverse %}
-                <li style="padding:10px; border-bottom:1px solid #eee;">
-                    <b>₹{{ bid.amount }}</b> by {{ bid.user.username if bid.user else "Unknown" }}
-                    <span style="color:gray;">
-                        at {{ bid.created_at.strftime('%d-%m-%Y %H:%M:%S') }}
-                    </span>
-                </li>
-            {% else %}
-                <li>No bids yet</li>
-            {% endfor %}
-
-        </ul>
+        {% for bid in auction.bids|reverse %}
+            <p>
+                ₹{{ bid.amount }} by {{ bid.user.username if bid.user else "Unknown" }}
+                <span style="color:gray;">
+                    ({{ bid.created_at.strftime('%d-%m-%Y %H:%M') }})
+                </span>
+            </p>
+        {% else %}
+            <p>No bids yet</p>
+        {% endfor %}
 
     </div>
 
 </div>
-
-<!-- ⏳ TIMER SCRIPT -->
-<script>
-let timerEl = document.getElementById("timer");
-
-if (timerEl && timerEl.dataset.end) {
-
-    let end = new Date(timerEl.dataset.end);
-
-    setInterval(() => {
-
-        let now = new Date();
-        let diff = end - now;
-
-        let bidSection = document.getElementById("bidSection");
-        let winnerBox = document.getElementById("winnerBox");
-
-        if (diff <= 0) {
-
-            timerEl.innerHTML = "⛔ Auction Ended";
-
-            if (bidSection) bidSection.style.display = "none";
-
-            let winner = `{% if winner %}{{ winner }}{% else %}No bids{% endif %}`;
-
-            if (winner === "No bids") {
-                winnerBox.innerHTML = "❌ No bids placed";
-            } else {
-                winnerBox.innerHTML = "🏆 Winner: " + winner;
-            }
-
-            return;
-        }
-
-        let s = Math.floor(diff / 1000) % 60;
-        let m = Math.floor(diff / (1000 * 60)) % 60;
-        let h = Math.floor(diff / (1000 * 60 * 60));
-
-        timerEl.innerHTML = `⏳ ${h}h ${m}m ${s}s`;
-
-    }, 1000);
-}
-</script>
 
 {% endblock %}

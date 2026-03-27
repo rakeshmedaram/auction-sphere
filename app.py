@@ -102,30 +102,37 @@ def auction_details(auction_id):
     )
 
 # ---------------- PLACE BID ----------------
-
 @app.route('/place_bid/<int:auction_id>', methods=['POST'])
 @login_required
 def place_bid(auction_id):
     auction = Auction.query.get_or_404(auction_id)
 
+    # ❌ stop if ended
     if auction.end_time and datetime.utcnow() > auction.end_time:
         flash("Auction ended")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
+    # ✅ FIX: correct input name
     bid_amount = request.form.get('bid_amount')
 
     if not bid_amount:
-        flash("Enter bid")
+        flash("Enter bid amount")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
-    bid_amount = float(bid_amount)
+    try:
+        bid_amount = float(bid_amount)
+    except:
+        flash("Invalid bid")
+        return redirect(url_for('auction_details', auction_id=auction_id))
 
     current_price = auction.current_price or auction.starting_price
 
+    # ❌ lower bid
     if bid_amount <= current_price:
-        flash("Bid must be higher")
+        flash(f"Bid must be higher than ₹{current_price}")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
+    # ✅ SAVE BID
     bid = Bid(
         amount=bid_amount,
         user_id=current_user.id,
@@ -137,8 +144,9 @@ def place_bid(auction_id):
     db.session.add(bid)
     db.session.commit()
 
-    return redirect(url_for('auction_details', auction_id=auction_id))
+    flash("✅ Bid placed successfully!")
 
+    return redirect(url_for('auction_details', auction_id=auction_id))
 # ---------------- AUTH ----------------
 
 @app.route('/register', methods=['GET', 'POST'])
