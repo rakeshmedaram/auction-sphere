@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash
+from flask import Flask, render_template, redirect, url_for, request, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_socketio import SocketIO, emit
@@ -19,8 +19,6 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
-
-# ✅ CREATE UPLOAD FOLDER (FIX)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db = SQLAlchemy(app)
@@ -28,6 +26,7 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 login_manager = LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = 'login'
 
 # ---------------- MODELS ----------------
 
@@ -62,7 +61,7 @@ class Bid(db.Model):
 
     user = db.relationship('User')
 
-# ✅ FORCE CREATE TABLES (FINAL FIX)
+# ✅ CREATE TABLES
 with app.app_context():
     db.create_all()
 
@@ -72,64 +71,27 @@ with app.app_context():
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# ---------------- ROUTES ----------------
+# ---------------- HOME ----------------
 
 @app.route('/')
 def home():
-    search = request.args.get('search', '')
-    category = request.args.get('category', '')
-    min_price = request.args.get('min_price')
-    max_price = request.args.get('max_price')
-    sort = request.args.get('sort', 'latest')
+    auctions = Auction.query.order_by(Auction.id.desc()).all()
+    return render_template('dashboard.html', auctions=auctions)
 
-    query = Auction.query
+# ---------------- AUCTION DETAILS ----------------
 
-    if search:
-        query = query.filter(
-            Auction.title.ilike(f"%{search}%") |
-            Auction.description.ilike(f"%{search}%")
-        )
-
-    if category:
-        query = query.filter_by(category=category)
-
-    if min_price:
-        query = query.filter(Auction.current_price >= float(min_price))
-
-    if max_price:
-        query = query.filter(Auction.current_price <= float(max_price))
-
-    if sort == "low":
-        query = query.order_by(Auction.current_price.asc())
-    elif sort == "high":
-        query = query.order_by(Auction.current_price.desc())
-    else:
-        query = query.order_by(Auction.id.desc())
-
-    auctions = query.all()
-
-    return render_template('dashboard.html',
-                           auctions=auctions,
-                           search=search,
-                           category=category,
-                           min_price=min_price,
-                           max_price=max_price,
-                           sort=sort)
 @app.route('/auction/<int:auction_id>')
 def auction_details(auction_id):
     auction = Auction.query.get_or_404(auction_id)
-
     now = datetime.utcnow()
 
-    # ✅ SAFE LAST BID
     last_bid = None
     if auction.bids:
         last_bid = sorted(auction.bids, key=lambda x: x.created_at)[-1]
 
-    # ✅ SAFE WINNER
     winner = None
-    if last_bid and last_bid.user:
-        winner = last_bid.user.username
+    if last_bid and auction.end_time and now > auction.end_time:
+        winner = last_bid.user.username if last_bid.user else "Unknown"
 
     return render_template(
         'auction_details.html',
@@ -138,6 +100,47 @@ def auction_details(auction_id):
         last_bid=last_bid,
         winner=winner
     )
+
+# ---------------- PLACE BID ----------------
+
+@app.route('/place_bid/<int:auction_id>', methods=['POST'])
+@login_required
+def place_bid(auction_id):
+    auction = Auction.query.get_or_404(auction_id)
+
+    if auction.end_time and datetime.utcnow() > auction.end_time:
+        flash("Auction ended")
+        return redirect(url_for('auction_details', auction_id=auction_id))
+
+    bid_amount = request.form.get('bid_amount')
+
+    if not bid_amount:
+        flash("Enter bid")
+        return redirect(url_for('auction_details', auction_id=auction_id))
+
+    bid_amount = float(bid_amount)
+
+    current_price = auction.current_price or auction.starting_price
+
+    if bid_amount <= current_price:
+        flash("Bid must be higher")
+        return redirect(url_for('auction_details', auction_id=auction_id))
+
+    bid = Bid(
+        amount=bid_amount,
+        user_id=current_user.id,
+        auction_id=auction.id
+    )
+
+    auction.current_price = bid_amount
+
+    db.session.add(bid)
+    db.session.commit()
+
+    return redirect(url_for('auction_details', auction_id=auction_id))
+
+# ---------------- AUTH ----------------
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -149,6 +152,7 @@ def register():
         db.session.add(user)
         db.session.commit()
         return redirect(url_for('login'))
+
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -170,10 +174,11 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+# ---------------- CREATE AUCTION ----------------
+
 @app.route('/create', methods=['GET', 'POST'])
 @login_required
 def create():
-
     if request.method == 'POST':
 
         title = request.form['title']
@@ -195,8 +200,7 @@ def create():
 
         if image_file and image_file.filename != "":
             filename = secure_filename(image_file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            image_file.save(filepath)
+            image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
 
         auction = Auction(
             title=title,
@@ -214,71 +218,46 @@ def create():
 
         return redirect(url_for('home'))
 
-# ---------------- SOCKET ----------------
-
     return render_template('create_auction.html')
 
-@app.route('/profile')
-@login_required
-def profile():
-
-    my_auctions = Auction.query.filter_by(owner_id=current_user.id).all()
-    my_bids = Bid.query.filter_by(user_id=current_user.id).all()
-
-    winning = []
-    for auction in Auction.query.all():
-        if auction.bids:
-            last_bid = auction.bids[-1]
-            if last_bid.user_id == current_user.id and auction.end_time < datetime.utcnow():
-                winning.append(auction)
-
-    return render_template('profile.html',
-                           my_auctions=my_auctions,
-                           my_bids=my_bids,
-                           winning=winning)
+# ---------------- DELETE ----------------
 
 @app.route('/delete/<int:auction_id>', methods=['POST'])
 @login_required
 def delete_auction(auction_id):
-
     auction = Auction.query.get_or_404(auction_id)
 
-    # 🔐 ONLY OWNER CAN DELETE
     if auction.owner_id != current_user.id:
-        flash("❌ Unauthorized")
+        flash("Unauthorized")
         return redirect(url_for('home'))
 
-    # ❌ BLOCK DELETE IF ACTIVE WITH BIDS
     if auction.bids and auction.end_time > datetime.utcnow():
-        flash("❌ Cannot delete active auction with bids")
+        flash("Cannot delete active auction with bids")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
-    # ✅ DELETE BIDS FIRST (IMPORTANT)
     for bid in auction.bids:
         db.session.delete(bid)
 
     db.session.delete(auction)
     db.session.commit()
 
-    flash("🗑️ Auction deleted")
-    return redirect(url_for('home'))# ---------------- SOCKET ----------------
+    flash("Auction deleted")
+    return redirect(url_for('home'))
+
+# ---------------- SOCKET ----------------
 
 @socketio.on('place_bid')
 def handle_bid(data):
-
     if not current_user.is_authenticated:
-        emit('bid_error', {'message': 'Login required'})
         return
 
     auction = Auction.query.get(data['auction_id'])
     bid_amount = float(data['amount'])
 
     if datetime.utcnow() > auction.end_time:
-        emit('bid_error', {'message': 'Auction ended'})
         return
 
     if bid_amount <= auction.current_price:
-        emit('bid_error', {'message': 'Bid must be higher'})
         return
 
     bid = Bid(
@@ -288,17 +267,13 @@ def handle_bid(data):
     )
 
     auction.current_price = bid_amount
-
     db.session.add(bid)
     db.session.commit()
 
     emit('new_bid', {
         'auction_id': auction.id,
         'price': auction.current_price,
-        'bidder': current_user.username,
-        'amount': bid.amount,
-        'time': bid.created_at.strftime('%H:%M:%S'),
-        'user_id': current_user.id
+        'bidder': current_user.username
     }, broadcast=True)
 
 # ---------------- RUN ----------------
