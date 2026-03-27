@@ -120,11 +120,23 @@ def home():
 def auction_details(auction_id):
     auction = Auction.query.get_or_404(auction_id)
 
+    now = datetime.utcnow()
+
+    # ✅ SAFE LAST BID
+    last_bid = None
+    if auction.bids and len(auction.bids) > 0:
+        last_bid = sorted(auction.bids, key=lambda x: x.created_at)[-1]
+
+    # ✅ SAFE WINNER
+    winner = last_bid.user.username if last_bid and last_bid.user else None
+
     return render_template(
-        'auction_details.html',
-        auction=auction,
-        now=datetime.utcnow()   # ✅ REQUIRED
-    )
+    'auction_details.html',
+    auction=auction,
+    now=datetime.utcnow(),
+    last_bid=last_bid,
+    winner=winner
+)
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
