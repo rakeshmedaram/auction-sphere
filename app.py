@@ -224,16 +224,30 @@ def place_bid(auction_id):
 
     auction = Auction.query.get_or_404(auction_id)
 
-    bid_amount = float(request.form['amount'])
+    # 🔥 ALWAYS RECHECK CURRENT TIME (UTC SAFE)
+    now = datetime.utcnow()
 
-    if datetime.utcnow() > auction.end_time:
-        flash("Auction ended")
+    if auction.end_time is None:
+        flash("Invalid auction")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
+    # ❌ BLOCK BIDDING AFTER END
+    if now >= auction.end_time:
+        flash("⛔ Auction already ended")
+        return redirect(url_for('auction_details', auction_id=auction_id))
+
+    try:
+        bid_amount = float(request.form['amount'])
+    except:
+        flash("Invalid bid amount")
+        return redirect(url_for('auction_details', auction_id=auction_id))
+
+    # ❌ LOWER BID BLOCK
     if bid_amount <= auction.current_price:
         flash("Bid must be higher than current price")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
+    # ✅ SAVE BID
     bid = Bid(
         amount=bid_amount,
         user_id=current_user.id,
@@ -245,9 +259,8 @@ def place_bid(auction_id):
     db.session.add(bid)
     db.session.commit()
 
-    flash("Bid placed successfully!")
+    flash("✅ Bid placed successfully!")
     return redirect(url_for('auction_details', auction_id=auction_id))
-
 # ---------------- SOCKET ----------------
 
 @socketio.on('place_bid')

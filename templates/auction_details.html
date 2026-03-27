@@ -6,99 +6,108 @@
 
     <div style="display:flex; gap:40px; flex-wrap:wrap; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
-        <!-- LEFT SIDE IMAGE -->
+        <!-- IMAGE -->
         <div style="flex:1; min-width:300px;">
             {% if auction.image %}
                 <img src="{{ url_for('static', filename='uploads/' + auction.image) }}"
                      style="width:100%; border-radius:10px;">
-            {% else %}
-                <img src="https://via.placeholder.com/400"
-                     style="width:100%; border-radius:10px;">
             {% endif %}
         </div>
 
-        <!-- RIGHT SIDE DETAILS -->
+        <!-- DETAILS -->
         <div style="flex:1; min-width:300px;">
 
             <h2>{{ auction.title }}</h2>
             <p>{{ auction.description }}</p>
 
             <p><b>Category:</b> {{ auction.category }}</p>
+            <p><b>Base:</b> ₹{{ auction.starting_price }}</p>
 
-            <p><b>Base Price:</b> ₹{{ auction.starting_price }}</p>
-
-            <!-- CURRENT PRICE -->
             <h2 style="color:#2563eb;">₹{{ auction.current_price }}</h2>
 
-            <!-- HIGHEST BIDDER -->
             <p>
                 <b>Highest Bidder:</b>
                 {% if auction.bids %}
                     {{ auction.bids[-1].user.username }} (₹{{ auction.current_price }})
                 {% else %}
-                    No bids yet
+                    No bids
                 {% endif %}
             </p>
 
             <!-- TIMER -->
-            <p>⏳ Ends at: {{ auction.end_time }}</p>
+            <p id="timer" data-end="{{ auction.end_time.isoformat() }}"></p>
 
-            <!-- AUCTION ENDED -->
-            {% if auction.end_time < now %}
-                <p style="color:red; font-weight:bold;">Auction Ended</p>
-
-                <p>
-                    <b>Winner:</b>
-                    {% if auction.bids %}
-                        {{ auction.bids[-1].user.username }} (₹{{ auction.current_price }})
-                    {% else %}
-                        No bids
-                    {% endif %}
-                </p>
-            {% else %}
+            <!-- WINNER -->
+            <div id="winnerBox" style="margin-top:10px; font-weight:bold; color:green;"></div>
 
             <!-- BID FORM -->
-            <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}" style="margin-top:20px;">
+            <div id="bidSection">
 
-                <input type="number" name="amount" placeholder="Enter bid"
-                       required min="{{ auction.current_price + 1 }}"
-                       style="padding:10px; width:200px; border-radius:6px; border:1px solid #ccc;">
+                <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}">
+                    <input type="number" name="amount"
+                           min="{{ auction.current_price + 1 }}"
+                           required
+                           placeholder="Enter bid">
 
-                <button type="submit"
-                        style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:6px;">
-                    Place Bid
-                </button>
+                    <button type="submit">Place Bid</button>
+                </form>
 
-            </form>
-
-            {% endif %}
+            </div>
 
         </div>
 
     </div>
 
-    <!-- BID HISTORY -->
-    <div style="margin-top:30px; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+    <!-- HISTORY -->
+    <div style="margin-top:20px; background:white; padding:20px; border-radius:12px;">
+        <h3>Bid History</h3>
 
-        <h3>📜 Bid History</h3>
-
-        <ul style="list-style:none; padding:0;">
-
-            {% for bid in auction.bids|reverse %}
-                <li style="padding:10px; border-bottom:1px solid #eee;">
-                    <b>₹{{ bid.amount }}</b> by {{ bid.user.username }}
-                    <span style="color:gray;">
-                        at {{ bid.created_at.strftime('%d-%m-%Y %H:%M:%S') }}
-                    </span>
-                </li>
-            {% else %}
-                <li>No bids yet</li>
-            {% endfor %}
-
-        </ul>
-
+        {% for bid in auction.bids|reverse %}
+            <p>₹{{ bid.amount }} by {{ bid.user.username }}</p>
+        {% else %}
+            <p>No bids yet</p>
+        {% endfor %}
     </div>
 
 </div>
+
+<script>
+let end = new Date(document.getElementById("timer").dataset.end);
+
+setInterval(() => {
+
+    let now = new Date();
+    let diff = end - now;
+
+    let timerEl = document.getElementById("timer");
+    let bidSection = document.getElementById("bidSection");
+    let winnerBox = document.getElementById("winnerBox");
+
+    if (diff <= 0) {
+
+        timerEl.innerHTML = "⛔ Auction Ended";
+
+        // ❌ HIDE BID SECTION
+        bidSection.style.display = "none";
+
+        let bidderText = `{{ auction.bids[-1].user.username if auction.bids else 'No bids' }}`;
+
+        if (bidderText === "No bids") {
+            winnerBox.innerHTML = "❌ No bids placed";
+        } else {
+            winnerBox.innerHTML = "🏆 Winner: " + bidderText;
+        }
+
+        return;
+    }
+
+    let s = Math.floor(diff / 1000) % 60;
+    let m = Math.floor(diff / (1000 * 60)) % 60;
+    let h = Math.floor(diff / (1000 * 60 * 60));
+
+    timerEl.innerHTML = `⏳ ${h}h ${m}m ${s}s`;
+
+}, 1000);
+</script>
 
 {% endblock %}
