@@ -2,112 +2,103 @@
 
 {% block content %}
 
-<div class="container">
+<div style="max-width:1000px; margin:auto; padding:20px;">
 
-    <div style="display:flex; gap:40px; flex-wrap:wrap;">
+    <div style="display:flex; gap:40px; flex-wrap:wrap; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
-        <!-- IMAGE -->
-        <div style="flex:1;">
+        <!-- LEFT SIDE IMAGE -->
+        <div style="flex:1; min-width:300px;">
             {% if auction.image %}
                 <img src="{{ url_for('static', filename='uploads/' + auction.image) }}"
+                     style="width:100%; border-radius:10px;">
+            {% else %}
+                <img src="https://via.placeholder.com/400"
                      style="width:100%; border-radius:10px;">
             {% endif %}
         </div>
 
-        <!-- DETAILS -->
-        <div style="flex:1;">
+        <!-- RIGHT SIDE DETAILS -->
+        <div style="flex:1; min-width:300px;">
 
             <h2>{{ auction.title }}</h2>
             <p>{{ auction.description }}</p>
 
-            <p><b>Base:</b> ₹{{ auction.starting_price }}</p>
+            <p><b>Category:</b> {{ auction.category }}</p>
 
-            <h3 style="color:#2563eb;">₹{{ auction.current_price }}</h3>
+            <p><b>Base Price:</b> ₹{{ auction.starting_price }}</p>
 
+            <!-- CURRENT PRICE -->
+            <h2 style="color:#2563eb;">₹{{ auction.current_price }}</h2>
+
+            <!-- HIGHEST BIDDER -->
             <p>
                 <b>Highest Bidder:</b>
                 {% if auction.bids %}
                     {{ auction.bids[-1].user.username }} (₹{{ auction.current_price }})
                 {% else %}
-                    No bids
+                    No bids yet
                 {% endif %}
             </p>
 
-            <p>⏳ Ends: {{ auction.end_time }}</p>
+            <!-- TIMER -->
+            <p>⏳ Ends at: {{ auction.end_time }}</p>
 
-            {% if auction.end_time > now %}
-            <!-- BID INPUT -->
-            <input type="number" id="bidAmount" placeholder="Enter bid"
-                   style="padding:10px; width:200px;">
+            <!-- AUCTION ENDED -->
+            {% if auction.end_time < now %}
+                <p style="color:red; font-weight:bold;">Auction Ended</p>
 
-            <button onclick="placeBid()"
-                    style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:5px;">
-                Bid
-            </button>
+                <p>
+                    <b>Winner:</b>
+                    {% if auction.bids %}
+                        {{ auction.bids[-1].user.username }} (₹{{ auction.current_price }})
+                    {% else %}
+                        No bids
+                    {% endif %}
+                </p>
             {% else %}
-                <p style="color:red;">Auction Ended</p>
-            {% endif %}
 
-            <!-- BID HISTORY -->
-            <h4>Bid History</h4>
-            <ul id="bidList">
-                {% for bid in auction.bids %}
-                    <li>
-                        ₹{{ bid.amount }} by {{ bid.user.username }}
-                        at {{ bid.created_at.strftime('%H:%M:%S') }}
-                    </li>
-                {% endfor %}
-            </ul>
+            <!-- BID FORM -->
+            <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}" style="margin-top:20px;">
+
+                <input type="number" name="amount" placeholder="Enter bid"
+                       required min="{{ auction.current_price + 1 }}"
+                       style="padding:10px; width:200px; border-radius:6px; border:1px solid #ccc;">
+
+                <button type="submit"
+                        style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:6px;">
+                    Place Bid
+                </button>
+
+            </form>
+
+            {% endif %}
 
         </div>
 
     </div>
 
+    <!-- BID HISTORY -->
+    <div style="margin-top:30px; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+
+        <h3>📜 Bid History</h3>
+
+        <ul style="list-style:none; padding:0;">
+
+            {% for bid in auction.bids|reverse %}
+                <li style="padding:10px; border-bottom:1px solid #eee;">
+                    <b>₹{{ bid.amount }}</b> by {{ bid.user.username }}
+                    <span style="color:gray;">
+                        at {{ bid.created_at.strftime('%d-%m-%Y %H:%M:%S') }}
+                    </span>
+                </li>
+            {% else %}
+                <li>No bids yet</li>
+            {% endfor %}
+
+        </ul>
+
+    </div>
+
 </div>
-
-<!-- SOCKET -->
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-
-<script>
-    const socket = io();
-
-    function placeBid() {
-        const amount = document.getElementById("bidAmount").value;
-
-        if (!amount || amount <= 0) {
-            alert("Enter valid amount");
-            return;
-        }
-
-        socket.emit("place_bid", {
-            auction_id: {{ auction.id }},
-            amount: amount
-        });
-
-        document.getElementById("bidAmount").value = "";
-    }
-
-    socket.on("new_bid", function(data) {
-
-        if (data.auction_id == {{ auction.id }}) {
-
-            // update price
-            document.querySelector("h3").innerText = "₹" + data.price;
-
-            // update bidder
-            document.querySelector("p b + text");
-
-            // add to list
-            let li = document.createElement("li");
-            li.innerText = "₹" + data.amount + " by " + data.bidder + " at " + data.time;
-
-            document.getElementById("bidList").prepend(li);
-        }
-    });
-
-    socket.on("bid_error", function(data) {
-        alert(data.message);
-    });
-</script>
 
 {% endblock %}

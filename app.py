@@ -218,6 +218,36 @@ def profile():
                            my_bids=my_bids,
                            winning=winning)
 
+@app.route('/bid/<int:auction_id>', methods=['POST'])
+@login_required
+def place_bid(auction_id):
+
+    auction = Auction.query.get_or_404(auction_id)
+
+    bid_amount = float(request.form['amount'])
+
+    if datetime.utcnow() > auction.end_time:
+        flash("Auction ended")
+        return redirect(url_for('auction_details', auction_id=auction_id))
+
+    if bid_amount <= auction.current_price:
+        flash("Bid must be higher than current price")
+        return redirect(url_for('auction_details', auction_id=auction_id))
+
+    bid = Bid(
+        amount=bid_amount,
+        user_id=current_user.id,
+        auction_id=auction.id
+    )
+
+    auction.current_price = bid_amount
+
+    db.session.add(bid)
+    db.session.commit()
+
+    flash("Bid placed successfully!")
+    return redirect(url_for('auction_details', auction_id=auction_id))
+
 # ---------------- SOCKET ----------------
 
 @socketio.on('place_bid')
