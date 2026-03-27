@@ -37,13 +37,11 @@
 <div class="card">
     <h3>🏆 Winning Auctions</h3>
 
-    {% for w in winning %}
-        <p>
-            {{ w.title }} - ₹{{ w.current_price }}
-        </p>
-    {% else %}
-        <p>No wins yet</p>
-    {% endfor %}
+{% for w in winning %}
+    <p>{{ w.title }} - ₹{{ w.amount }}</p>
+{% else %}
+    <p>No wins yet</p>
+{% endfor %}
 </div>
 
 </div>

@@ -43,11 +43,23 @@
             <p><b>Ends at:</b> {{ auction.end_time }}</p>
 
             <!-- 🏆 WINNER -->
-            {% if winner %}
-                <p style="color:green; font-weight:bold;">
-                    🏆 Winner: {{ winner }}
-                </p>
-            {% endif %}
+           {% if winner %}
+<div style="
+    margin-top:15px;
+    padding:15px;
+    border-radius:12px;
+    background: linear-gradient(135deg,#d1fae5,#a7f3d0);
+    color:#065f46;
+    font-weight:bold;
+    text-align:center;
+    font-size:18px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.1);
+">
+    🏆 Winner: {{ winner.name }}  
+    <br>
+    💰 Winning Bid: ₹{{ winner.amount }}
+</div>
+{% endif %}
 
             <!-- 🗑 DELETE -->
             {% if current_user.is_authenticated and auction.owner_id == current_user.id %}

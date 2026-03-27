@@ -79,7 +79,6 @@ def home():
     return render_template('dashboard.html', auctions=auctions)
 
 # ---------------- AUCTION DETAILS ----------------
-
 @app.route('/auction/<int:auction_id>')
 def auction_details(auction_id):
     auction = Auction.query.get_or_404(auction_id)
@@ -90,8 +89,13 @@ def auction_details(auction_id):
         last_bid = sorted(auction.bids, key=lambda x: x.created_at)[-1]
 
     winner = None
-    if last_bid and auction.end_time and now > auction.end_time:
-        winner = last_bid.user.username if last_bid.user else "Unknown"
+
+    # 🏆 WINNER LOGIC
+    if last_bid and auction.end_time and now >= auction.end_time:
+        winner = {
+            "name": last_bid.user.username if last_bid.user else "Unknown",
+            "amount": last_bid.amount
+        }
 
     return render_template(
         'auction_details.html',
@@ -100,7 +104,6 @@ def auction_details(auction_id):
         last_bid=last_bid,
         winner=winner
     )
-
 # ---------------- PLACE BID ----------------
 @app.route('/place_bid/<int:auction_id>', methods=['POST'])
 @login_required
