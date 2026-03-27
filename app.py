@@ -127,7 +127,9 @@ def auction_details(auction_id):
         last_bid = sorted(auction.bids, key=lambda x: x.created_at)[-1]
 
     # ✅ SAFE WINNER
-    winner = last_bid.user.username if last_bid and last_bid.user else None
+    winner = None
+    if last_bid and last_bid.user:
+        winner = last_bid.user.username
 
     return render_template(
         'auction_details.html',
