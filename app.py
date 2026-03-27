@@ -6,30 +6,23 @@ from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
 
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+import os
+
 app = Flask(__name__)
 
-# ✅ SECRET
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secret123')
 
-# ✅ DATABASE (Render PostgreSQL or local fallback)
-database_url = os.environ.get('DATABASE_URL')
-
-if database_url:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace("postgres://", "postgresql://")
-else:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-
 db = SQLAlchemy(app)
-from sqlalchemy import inspect
 
-with app.app_context():
-    inspector = inspect(db.engine)
-    
-    # Create tables only if not exist
-    if not inspector.has_table("user"):
+# ✅ FORCE CREATE TABLES (FINAL FIX)
+def init_db():
+    with app.app_context():
         db.create_all()
+
+init_db()
 # ✅ SOCKET (Render compatible)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
