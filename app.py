@@ -148,7 +148,40 @@ def place_bid(auction_id):
 
     return redirect(url_for('auction_details', auction_id=auction_id))
 # ---------------- AUTH ----------------
+@app.route('/profile')
+@login_required
+def profile():
 
+    # 👤 USER INFO
+    user = current_user
+
+    # 📦 MY AUCTIONS
+    my_auctions = Auction.query.filter_by(owner_id=user.id).order_by(Auction.id.desc()).all()
+
+    # 💰 MY BIDS
+    my_bids = Bid.query.filter_by(user_id=user.id).order_by(Bid.created_at.desc()).all()
+
+    # 🏆 WINNING AUCTIONS
+    winning = []
+    now = datetime.utcnow()
+
+    auctions = Auction.query.all()
+
+    for auction in auctions:
+        if auction.bids:
+            last_bid = sorted(auction.bids, key=lambda x: x.created_at)[-1]
+
+            # ✅ user is highest bidder AND auction ended
+            if last_bid.user_id == user.id and auction.end_time and now > auction.end_time:
+                winning.append(auction)
+
+    return render_template(
+        'profile.html',
+        user=user,
+        my_auctions=my_auctions,
+        my_bids=my_bids,
+        winning=winning
+    )
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
