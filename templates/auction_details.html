@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card">
+
+    <!-- 🖼 IMAGE -->
+    <div>
+        {% if auction.image %}
+            <img src="{{ url_for('static', filename='uploads/' + auction.image) }}"
+                 onclick="openImage(this.src)"
+                 class="product-img">
+        {% endif %}
+    </div>
+
+    <!-- DETAILS -->
+    <div>
+
+        <h2>{{ auction.title }}</h2>
+        <p>{{ auction.description }}</p>
+
+        <p><b>Category:</b> {{ auction.category }}</p>
+
+        <p><b>Base:</b> ₹{{ auction.starting_price }}</p>
+
+        <!-- 🏆 HIGHEST BID -->
+        <p id="bidder">
+            <b>Highest Bid:</b>
+            {% if auction.bids %}
+                {{ (auction.bids|last).user.username }} (₹{{ auction.current_price }})
+            {% else %}
+                No bids
+            {% endif %}
+        </p>
+
+        <!-- ⏳ TIMER -->
+        <p class="timer">
+            ⏳ <span id="timer" data-end="{{ auction.end_time.isoformat() }}"></span>
+        </p>
+
+        <!-- 🏆 WINNER -->
+        <div id="winnerBox" class="winner-box"></div>
+
+        <!-- 💰 BID -->
+        <input type="number" id="bid" placeholder="Enter bid">
+        <button onclick="placeBid()">Place Bid</button>
+
+        <!-- 📊 HISTORY -->
+        <ul id="history" class="history">
+            {% for bid in auction.bids %}
+            <li>₹{{ bid.amount }} by {{ bid.user.username }}</li>
+            {% endfor %}
+        </ul>
+
+    </div>
+
+</div>
+
+<!-- 🔍 IMAGE MODAL -->
+<div id="modal">
+    <span onclick="closeImage()">✖</span>
+    <img id="modalImg">
+</div>
+
+<!-- SOCKET -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+
+<script>
+
+const socket = io();
+const auctionId = {{ auction.id }};
+
+// 💰 PLACE BID
+function placeBid(){
+    let val = document.getElementById("bid").value;
+
+    if(!val){
+        alert("Enter bid");
+        return;
+    }
+
+    socket.emit('place_bid',{
+        auction_id: auctionId,
+        amount: parseFloat(val)
+    });
+}
+
+// ⚡ REAL-TIME UPDATE
+socket.on('new_bid', data => {
+
+    if(data.auction_id !== auctionId) return;
+
+    document.getElementById("bidder").innerHTML =
+        `<b>Highest Bid:</b> ${data.bidder} (₹${data.price})`;
+
+    let li = document.createElement("li");
+    li.innerText = `₹${data.amount} by ${data.bidder}`;
+    document.getElementById("history").appendChild(li);
+});
+
+// ⏳ TIMER + WINNER
+let end = new Date(document.getElementById("timer").dataset.end);
+
+setInterval(() => {
+
+    let diff = end - new Date();
+    let timerEl = document.getElementById("timer");
+    let winnerBox = document.getElementById("winnerBox");
+    let bidderText = document.getElementById("bidder").innerText;
+
+    if(diff <= 0){
+
+        timerEl.innerHTML = "⛔ Auction Ended";
+
+        if(bidderText.includes("No bids")){
+            winnerBox.innerHTML = "❌ No bids placed";
+        } else {
+            winnerBox.innerHTML = "🏆 Winner: " + bidderText;
+        }
+
+        winnerBox.classList.add("show");
+        return;
+    }
+
+    let s = Math.floor(diff/1000) % 60;
+    let m = Math.floor(diff/(1000*60)) % 60;
+    let h = Math.floor(diff/(1000*60*60));
+
+    timerEl.innerHTML = `${h}h ${m}m ${s}s`;
+
+}, 1000);
+
+// 🔍 IMAGE
+function openImage(src){
+    document.getElementById("modal").style.display = "flex";
+    document.getElementById("modalImg").src = src;
+}
+
+function closeImage(){
+    document.getElementById("modal").style.display = "none";
+}
+
+</script>
+
+<style>
+
+/* CARD */
+.card{
+    display:flex;
+    gap:30px;
+    backdrop-filter: blur(15px);
+    background: rgba(255,255,255,0.5);
+    padding:25px;
+    border-radius:15px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.1);
+}
+
+/* IMAGE */
+.product-img{
+    width:300px;
+    border-radius:12px;
+    cursor:pointer;
+}
+
+/* TIMER */
+.timer{
+    font-weight:bold;
+    color:#d97706;
+}
+
+/* HISTORY */
+.history{
+    max-height:150px;
+    overflow:auto;
+}
+
+/* WINNER BOX */
+.winner-box{
+    display:none;
+    margin-top:15px;
+    padding:15px;
+    border-radius:12px;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(10px);
+    font-weight:bold;
+    color:#16a34a;
+    text-align:center;
+    font-size:18px;
+}
+
+.winner-box.show{
+    display:block;
+    animation:fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn{
+    from{opacity:0; transform:translateY(10px);}
+    to{opacity:1; transform:translateY(0);}
+}
+
+/* MODAL */
+#modal{
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:black;
+    justify-content:center;
+    align-items:center;
+}
+
+#modal img{
+    max-width:90%;
+}
+
+#modal span{
+    position:absolute;
+    top:20px;
+    right:30px;
+    color:white;
+    font-size:30px;
+    cursor:pointer;
+}
+
+</style>
+
+{% endblock %}

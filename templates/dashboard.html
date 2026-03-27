@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>🔥 Live Auctions</h2>
+
+<!-- 🔍 SEARCH + FILTER -->
+<form method="GET" class="filter-bar">
+
+    <input type="text" name="search" placeholder="🔍 Search..."
+           value="{{ search }}">
+
+    <select name="category">
+        <option value="">All</option>
+        <option value="Electronics" {% if category=="Electronics" %}selected{% endif %}>Electronics</option>
+        <option value="Vehicles" {% if category=="Vehicles" %}selected{% endif %}>Vehicles</option>
+        <option value="Fashion" {% if category=="Fashion" %}selected{% endif %}>Fashion</option>
+        <option value="Furniture" {% if category=="Furniture" %}selected{% endif %}>Furniture</option>
+        <option value="Others" {% if category=="Others" %}selected{% endif %}>Others</option>
+    </select>
+
+    <input type="number" name="min_price" placeholder="Min ₹" value="{{ min_price }}">
+    <input type="number" name="max_price" placeholder="Max ₹" value="{{ max_price }}">
+
+    <select name="sort">
+        <option value="latest">Latest</option>
+        <option value="low">₹ Low</option>
+        <option value="high">₹ High</option>
+    </select>
+
+    <button type="submit">Apply</button>
+
+</form>
+<!-- 📦 AUCTIONS GRID -->
+<div class="grid">
+
+{% for auction in auctions %}
+<div class="card">
+
+    <img src="{{ url_for('static', filename='uploads/' + auction.image) if auction.image else 'https://via.placeholder.com/250' }}"
+         style="width:100%; height:180px; object-fit:cover; border-radius:10px;">
+
+    <h3>{{ auction.title }}</h3>
+
+    <p>🏷️ {{ auction.category }}</p>
+
+    <p style="font-weight:bold; color:#2563eb;">
+        ₹{{ auction.current_price }}
+    </p>
+
+    <a href="{{ url_for('auction_details', auction_id=auction.id) }}">
+        <button>View Auction</button>
+    </a>
+
+</div>
+{% endfor %}
+
+</div>
+
+<style>
+
+/* FILTER BAR */
+.filter-box{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+    flex-wrap:wrap;
+}
+
+.filter-box input, .filter-box select{
+    padding:8px;
+    border-radius:6px;
+    border:1px solid #ccc;
+}
+
+.filter-box button{
+    background:#2563eb;
+    color:white;
+    border:none;
+    padding:8px 15px;
+    border-radius:6px;
+}
+
+/* GRID */
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+    gap:20px;
+}
+
+/* CARD */
+.card{
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+.card img{
+    width:100%;
+    height:200px;
+    object-fit:cover;
+    border-radius:8px;
+}
+
+</style>
+
+{% endblock %}

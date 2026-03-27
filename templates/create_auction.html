@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>🚀 Create Auction</h2>
+
+<div class="form-container">
+
+<form method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+
+    <!-- TITLE -->
+    <label>Title</label>
+    <input type="text" name="title" id="title" required>
+
+    <!-- DESCRIPTION -->
+    <label>Description</label>
+    <textarea name="description" id="desc" required></textarea>
+
+    <!-- CATEGORY -->
+    <label>Category</label>
+    <select name="category" id="category" required>
+        <option value="">Select Category</option>
+        <option>Electronics</option>
+        <option>Vehicles</option>
+        <option>Fashion</option>
+        <option>Furniture</option>
+        <option>Others</option>
+    </select>
+
+    <!-- PRICE -->
+    <label>Starting Price</label>
+    <input type="number" name="price" id="price" required>
+
+    <!-- DATE -->
+    <label>End Date & Time</label>
+    <input type="datetime-local" name="end_time" id="end_time" required>
+
+    <!-- IMAGE -->
+    <label>Upload Image</label>
+    <div class="upload-box" id="uploadBox">
+        <p>📂 Drag & Drop or Click</p>
+        <input type="file" name="image" id="imageInput" hidden>
+        <img id="preview">
+    </div>
+
+    <!-- ERROR -->
+    <p id="error" style="color:red;"></p>
+
+    <button type="submit">Create Auction</button>
+
+</form>
+
+</div>
+
+<script>
+// IMAGE PREVIEW
+document.getElementById("uploadBox").onclick=()=>document.getElementById("imageInput").click();
+
+document.getElementById("imageInput").onchange=function(){
+    let file=this.files[0];
+    if(file){
+        let reader=new FileReader();
+        reader.onload=e=>{
+            let img=document.getElementById("preview");
+            img.src=e.target.result;
+            img.style.display="block";
+        }
+        reader.readAsDataURL(file);
+    }
+};
+
+// VALIDATION
+function validateForm(){
+
+    let price=document.getElementById("price").value;
+    let end=document.getElementById("end_time").value;
+    let error=document.getElementById("error");
+
+    if(price <= 0){
+        error.innerText="Price must be greater than 0";
+        return false;
+    }
+
+    let selectedDate=new Date(end);
+    let now=new Date();
+
+    if(selectedDate <= now){
+        error.innerText="End time must be in future";
+        return false;
+    }
+
+    error.innerText="";
+    return true;
+}
+</script>
+
+<style>
+.form-container{
+    display:flex;
+    justify-content:center;
+}
+form{
+    background:white;
+    padding:25px;
+    width:400px;
+    border-radius:10px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.1);
+}
+input, textarea, select{
+    width:100%;
+    padding:10px;
+    margin:10px 0;
+    border-radius:8px;
+    border:1px solid #ccc;
+}
+button{
+    width:100%;
+    background:#2563eb;
+    color:white;
+    padding:12px;
+    border:none;
+    border-radius:8px;
+}
+.upload-box{
+    border:2px dashed #ccc;
+    padding:20px;
+    text-align:center;
+    cursor:pointer;
+}
+#preview{
+    width:100%;
+    margin-top:10px;
+    display:none;
+}
+</style>
+
+{% endblock %}
