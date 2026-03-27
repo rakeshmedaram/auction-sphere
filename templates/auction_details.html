@@ -125,8 +125,7 @@ setInterval(() => {
         // ❌ HIDE BID
         bidSection.style.display = "none";
 
-        let bidder = `{% if auction.bids %}{{ auction.bids[-1].user.username }}{% else %}No bids{% endif %}`;
-
+        let bidder = `{% if auction.bids and auction.bids|length > 0 %}{{ auction.bids[-1].user.username }}{% else %}No bids{% endif %}`;
         if (bidder === "No bids") {
             winnerBox.innerHTML = "❌ No bids placed";
         } else {

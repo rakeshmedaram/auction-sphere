@@ -119,8 +119,12 @@ def home():
 @app.route('/auction/<int:auction_id>')
 def auction_details(auction_id):
     auction = Auction.query.get_or_404(auction_id)
-    return render_template('auction_details.html', auction=auction, now=datetime.utcnow())
 
+    return render_template(
+        'auction_details.html',
+        auction=auction,
+        now=datetime.utcnow()   # ✅ REQUIRED
+    )
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
