@@ -115,37 +115,27 @@ def home():
                            min_price=min_price,
                            max_price=max_price,
                            sort=sort)
-
-@app.route('/bid/<int:auction_id>', methods=['POST'])
-@login_required
-def place_bid(auction_id):
+@app.route('/auction/<int:auction_id>')
+def auction_details(auction_id):
     auction = Auction.query.get_or_404(auction_id)
 
-    # ❌ Prevent bidding after end
-    if auction.end_time and datetime.utcnow() > auction.end_time:
-        flash("Auction has ended")
-        return redirect(url_for('auction_details', auction_id=auction.id))
+    now = datetime.utcnow()
 
-    amount = float(request.form.get('amount'))
+    # ✅ SAFE LAST BID
+    last_bid = None
+    if auction.bids:
+        last_bid = sorted(auction.bids, key=lambda x: x.created_at)[-1]
 
-    # ❌ Prevent low bids
-    if amount <= auction.current_price:
-        flash("Bid must be higher than current price")
-        return redirect(url_for('auction_details', auction_id=auction.id))
+    # ✅ SAFE WINNER
+    winner = last_bid.user.username if last_bid and last_bid.user else None
 
-    # ✅ Save bid
-    bid = Bid(
-        amount=amount,
-        user_id=current_user.id,
-        auction_id=auction.id
+    return render_template(
+        'auction_details.html',
+        auction=auction,
+        now=now,
+        last_bid=last_bid,
+        winner=winner
     )
-
-    auction.current_price = amount
-
-    db.session.add(bid)
-    db.session.commit()
-
-    return redirect(url_for('auction_details', auction_id=auction.id))
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -221,6 +211,8 @@ def create():
         db.session.commit()
 
         return redirect(url_for('home'))
+
+# ---------------- SOCKET ----------------
 
     return render_template('create_auction.html')
 
