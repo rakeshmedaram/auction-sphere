@@ -5,18 +5,25 @@ from flask_socketio import SocketIO, emit
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
-from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-import os
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+# 🔐 SECRET
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secret123')
 
+# 🗄 DATABASE
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.replace("postgres://", "postgresql://")
+else:
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
+
+app.config['UPLOAD_FOLDER'] = 'static/uploads'
+
+# ✅ CREATE UPLOAD FOLDER (FIX)
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 db = SQLAlchemy(app)
-
-
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 login_manager = LoginManager()
@@ -55,11 +62,10 @@ class Bid(db.Model):
 
     user = db.relationship('User')
 
-def init_db():
-    with app.app_context():
-        db.create_all()
+# ✅ FORCE CREATE TABLES (FINAL FIX)
+with app.app_context():
+    db.create_all()
 
-init_db()
 # ---------------- LOGIN ----------------
 
 @login_manager.user_loader
@@ -70,7 +76,6 @@ def load_user(user_id):
 
 @app.route('/')
 def home():
-
     search = request.args.get('search', '')
     category = request.args.get('category', '')
     min_price = request.args.get('min_price')
@@ -173,7 +178,8 @@ def create():
 
         if image_file and image_file.filename != "":
             filename = secure_filename(image_file.filename)
-            image_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            image_file.save(filepath)
 
         auction = Auction(
             title=title,
@@ -190,6 +196,8 @@ def create():
         db.session.commit()
 
         return redirect(url_for('home'))
+
+    return render_template('create_auction.html')
 
 @app.route('/profile')
 @login_required
@@ -253,7 +261,4 @@ def handle_bid(data):
 # ---------------- RUN ----------------
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-
     socketio.run(app, host="0.0.0.0", port=10000)
