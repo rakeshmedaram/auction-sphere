@@ -1,113 +1,117 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auction Sphere</title>
 
-{% block content %}
+    <style>
 
-<div class="container">
-
-    <div style="display:flex; gap:40px; flex-wrap:wrap;">
-
-        <!-- IMAGE -->
-        <div style="flex:1;">
-            {% if auction.image %}
-                <img src="{{ url_for('static', filename='uploads/' + auction.image) }}"
-                     style="width:100%; border-radius:10px;">
-            {% endif %}
-        </div>
-
-        <!-- DETAILS -->
-        <div style="flex:1;">
-
-            <h2>{{ auction.title }}</h2>
-            <p>{{ auction.description }}</p>
-
-            <p><b>Base:</b> ₹{{ auction.starting_price }}</p>
-
-            <h3 style="color:#2563eb;">₹{{ auction.current_price }}</h3>
-
-            <p>
-                <b>Highest Bidder:</b>
-                {% if auction.bids %}
-                    {{ auction.bids[-1].user.username }} (₹{{ auction.current_price }})
-                {% else %}
-                    No bids
-                {% endif %}
-            </p>
-
-            <p>⏳ Ends: {{ auction.end_time }}</p>
-
-            {% if auction.end_time > now %}
-            <!-- BID INPUT -->
-            <input type="number" id="bidAmount" placeholder="Enter bid"
-                   style="padding:10px; width:200px;">
-
-            <button onclick="placeBid()"
-                    style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:5px;">
-                Bid
-            </button>
-            {% else %}
-                <p style="color:red;">Auction Ended</p>
-            {% endif %}
-
-            <!-- BID HISTORY -->
-            <h4>Bid History</h4>
-            <ul id="bidList">
-                {% for bid in auction.bids %}
-                    <li>
-                        ₹{{ bid.amount }} by {{ bid.user.username }}
-                        at {{ bid.created_at.strftime('%H:%M:%S') }}
-                    </li>
-                {% endfor %}
-            </ul>
-
-        </div>
-
-    </div>
-
-</div>
-
-<!-- SOCKET -->
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-
-<script>
-    const socket = io();
-
-    function placeBid() {
-        const amount = document.getElementById("bidAmount").value;
-
-        if (!amount || amount <= 0) {
-            alert("Enter valid amount");
-            return;
-        }
-
-        socket.emit("place_bid", {
-            auction_id: {{ auction.id }},
-            amount: amount
-        });
-
-        document.getElementById("bidAmount").value = "";
+    body{
+        margin:0;
+        font-family: 'Segoe UI', sans-serif;
+        background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+        color:#1e293b;
     }
 
-    socket.on("new_bid", function(data) {
+    /* NAVBAR */
+    nav{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:15px 30px;
+        backdrop-filter: blur(10px);
+        background: rgba(255,255,255,0.4);
+        border-bottom:1px solid rgba(255,255,255,0.3);
+        position:sticky;
+        top:0;
+    }
 
-        if (data.auction_id == {{ auction.id }}) {
+    nav a{
+        margin:0 10px;
+        text-decoration:none;
+        color:#1e3a8a;
+        font-weight:500;
+    }
 
-            // update price
-            document.querySelector("h3").innerText = "₹" + data.price;
+    nav a:hover{
+        color:#2563eb;
+    }
 
-            // update bidder
-            document.querySelector("p b + text");
+    /* CONTAINER */
+    .container{
+        padding:30px;
+    }
 
-            // add to list
-            let li = document.createElement("li");
-            li.innerText = "₹" + data.amount + " by " + data.bidder + " at " + data.time;
+    /* GLASS CARD */
+    .card{
+        backdrop-filter: blur(15px);
+        background: rgba(255,255,255,0.5);
+        border-radius:15px;
+        padding:20px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        transition:0.3s;
+    }
 
-            document.getElementById("bidList").prepend(li);
-        }
-    });
+    .card:hover{
+        transform: translateY(-5px);
+        box-shadow:0 12px 30px rgba(0,0,0,0.15);
+    }
 
-    socket.on("bid_error", function(data) {
-        alert(data.message);
-    });
-</script>
+    /* BUTTON */
+    button{
+        background: linear-gradient(135deg, #3b82f6, #60a5fa);
+        color:white;
+        border:none;
+        padding:10px 15px;
+        border-radius:8px;
+        cursor:pointer;
+    }
 
-{% endblock %}
+    button:hover{
+        opacity:0.9;
+    }
+
+    /* INPUT */
+    input, select, textarea{
+        width:100%;
+        padding:10px;
+        margin:8px 0;
+        border-radius:8px;
+        border:1px solid #cbd5f5;
+        background: rgba(255,255,255,0.6);
+    }
+
+    /* GRID */
+    .grid{
+        display:grid;
+        grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+        gap:20px;
+    }
+
+    </style>
+
+</head>
+
+<body>
+
+<nav>
+    <h2>💎 Auction Sphere</h2>
+
+    <div>
+        {% if current_user.is_authenticated %}
+            <a href="/">Home</a>
+            <a href="/create">Create</a>
+            <a href="/profile">Profile</a>
+            <a href="/logout">Logout</a>
+        {% else %}
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+        {% endif %}
+    </div>
+</nav>
+
+<div class="container">
+    {% block content %}{% endblock %}
+</div>
+
+</body>
+</html>
