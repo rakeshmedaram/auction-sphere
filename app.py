@@ -5,7 +5,6 @@ from flask_socketio import SocketIO, emit
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
-
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import os
@@ -17,13 +16,7 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'secret123')
 
 db = SQLAlchemy(app)
 
-# ✅ FORCE CREATE TABLES (FINAL FIX)
-def init_db():
-    with app.app_context():
-        db.create_all()
 
-init_db()
-# ✅ SOCKET (Render compatible)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 login_manager = LoginManager()
@@ -62,6 +55,11 @@ class Bid(db.Model):
 
     user = db.relationship('User')
 
+def init_db():
+    with app.app_context():
+        db.create_all()
+
+init_db()
 # ---------------- LOGIN ----------------
 
 @login_manager.user_loader
