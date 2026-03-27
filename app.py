@@ -22,8 +22,14 @@ else:
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 
 db = SQLAlchemy(app)
+from sqlalchemy import inspect
+
 with app.app_context():
-    db.create_all()
+    inspector = inspect(db.engine)
+    
+    # Create tables only if not exist
+    if not inspector.has_table("user"):
+        db.create_all()
 # ✅ SOCKET (Render compatible)
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
