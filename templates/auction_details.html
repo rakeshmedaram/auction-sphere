@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<div style="max-width:1000px; margin:auto;">
+<div style="max-width:1000px; margin:auto; padding:20px;">
 
     <div style="display:flex; gap:40px; flex-wrap:wrap; background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
@@ -39,27 +39,11 @@
                 {% endif %}
             </p>
 
-            <!-- ⏳ TIME -->
-            <p><b>Ends at:</b> {{ auction.end_time }}</p>
+            <!-- ⏳ TIMER -->
+            <p id="timer" data-end="{{ auction.end_time.isoformat() if auction.end_time else '' }}"></p>
 
             <!-- 🏆 WINNER -->
-           {% if winner %}
-<div style="
-    margin-top:15px;
-    padding:15px;
-    border-radius:12px;
-    background: linear-gradient(135deg,#d1fae5,#a7f3d0);
-    color:#065f46;
-    font-weight:bold;
-    text-align:center;
-    font-size:18px;
-    box-shadow:0 5px 15px rgba(0,0,0,0.1);
-">
-    🏆 Winner: {{ winner.name }}  
-    <br>
-    💰 Winning Bid: ₹{{ winner.amount }}
-</div>
-{% endif %}
+            <div id="winnerBox" style="margin-top:10px; font-weight:bold; color:green;"></div>
 
             <!-- 🗑 DELETE -->
             {% if current_user.is_authenticated and auction.owner_id == current_user.id %}
@@ -72,27 +56,31 @@
             {% endif %}
 
             <!-- 💰 BID FORM -->
-            {% if auction.end_time and now < auction.end_time %}
+            <div id="bidSection" style="margin-top:15px;">
 
-            <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}" style="margin-top:15px;">
+                {% if auction.end_time and now < auction.end_time %}
 
-                <input type="number"
-                       name="bid_amount"
-                       min="{{ auction.current_price + 1 }}"
-                       placeholder="Enter bid"
-                       required
-                       style="padding:10px; border-radius:6px; border:1px solid #ccc;">
+                <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}">
+                    
+                    <input type="number"
+                           name="bid_amount"
+                           min="{{ auction.current_price + 1 }}"
+                           placeholder="Enter bid"
+                           required
+                           style="padding:10px; border-radius:6px; border:1px solid #ccc;">
 
-                <button type="submit"
-                        style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:6px;">
-                    Place Bid
-                </button>
+                    <button type="submit"
+                            style="padding:10px 20px; background:#2563eb; color:white; border:none; border-radius:6px;">
+                        Place Bid
+                    </button>
 
-            </form>
+                </form>
 
-            {% else %}
-                <p style="color:red; font-weight:bold;">⛔ Auction Ended</p>
-            {% endif %}
+                {% else %}
+                    <p style="color:red; font-weight:bold;">⛔ Auction Ended</p>
+                {% endif %}
+
+            </div>
 
         </div>
 
@@ -117,5 +105,53 @@
     </div>
 
 </div>
+
+<!-- 🚀 SCRIPT (IMPORTANT FIX) -->
+<script>
+let timerEl = document.getElementById("timer");
+
+if (timerEl && timerEl.dataset.end) {
+
+    let end = new Date(timerEl.dataset.end);
+
+    setInterval(() => {
+
+        let now = new Date();
+        let diff = end - now;
+
+        let bidSection = document.getElementById("bidSection");
+        let winnerBox = document.getElementById("winnerBox");
+
+        if (diff <= 0) {
+
+            timerEl.innerHTML = "⛔ Auction Ended";
+
+            // 🔥 REMOVE BID FORM COMPLETELY
+            if (bidSection) {
+                bidSection.innerHTML = "<p style='color:red;font-weight:bold;'>Auction Ended</p>";
+            }
+
+            // 🏆 SHOW WINNER
+            let winner = `{% if winner %}{{ winner.name }}{% else %}No bids{% endif %}`;
+            let amount = `{% if winner %}{{ winner.amount }}{% endif %}`;
+
+            if (winner === "No bids") {
+                winnerBox.innerHTML = "❌ No bids placed";
+            } else {
+                winnerBox.innerHTML = "🏆 Winner: " + winner + " (₹" + amount + ")";
+            }
+
+            return;
+        }
+
+        let s = Math.floor(diff / 1000) % 60;
+        let m = Math.floor(diff / (1000 * 60)) % 60;
+        let h = Math.floor(diff / (1000 * 60 * 60));
+
+        timerEl.innerHTML = `⏳ ${h}h ${m}m ${s}s`;
+
+    }, 1000);
+}
+</script>
 
 {% endblock %}

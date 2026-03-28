@@ -289,19 +289,25 @@ def delete_auction(auction_id):
     return redirect(url_for('home'))
 
 # ---------------- SOCKET ----------------
-
 @socketio.on('place_bid')
 def handle_bid(data):
     if not current_user.is_authenticated:
         return
 
     auction = Auction.query.get(data['auction_id'])
-    bid_amount = float(data['amount'])
+    now = datetime.utcnow()
 
-    if not auction.end_time or datetime.utcnow() >= auction.end_time:
+    # 🚨 HARD BLOCK
+    if auction.end_time is None or now >= auction.end_time:
         return
 
+    bid_amount = float(data['amount'])
+
     if bid_amount <= auction.current_price:
+        return
+
+    # 🚨 DOUBLE CHECK
+    if datetime.utcnow() >= auction.end_time:
         return
 
     bid = Bid(
@@ -311,6 +317,7 @@ def handle_bid(data):
     )
 
     auction.current_price = bid_amount
+
     db.session.add(bid)
     db.session.commit()
 
@@ -319,7 +326,6 @@ def handle_bid(data):
         'price': auction.current_price,
         'bidder': current_user.username
     }, broadcast=True)
-
 # ---------------- RUN ----------------
 
 if __name__ == '__main__':
