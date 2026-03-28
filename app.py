@@ -110,12 +110,13 @@ def auction_details(auction_id):
 def place_bid(auction_id):
     auction = Auction.query.get_or_404(auction_id)
 
-    # ❌ stop if ended
-    if auction.end_time and datetime.utcnow() > auction.end_time:
-        flash("Auction ended")
+    now = datetime.utcnow()
+
+    # 🔥 STRICT BLOCK (FINAL FIX)
+    if not auction.end_time or now >= auction.end_time:
+        flash("⛔ Auction already ended")
         return redirect(url_for('auction_details', auction_id=auction_id))
 
-    # ✅ FIX: correct input name
     bid_amount = request.form.get('bid_amount')
 
     if not bid_amount:
@@ -130,7 +131,6 @@ def place_bid(auction_id):
 
     current_price = auction.current_price or auction.starting_price
 
-    # ❌ lower bid
     if bid_amount <= current_price:
         flash(f"Bid must be higher than ₹{current_price}")
         return redirect(url_for('auction_details', auction_id=auction_id))
@@ -298,7 +298,7 @@ def handle_bid(data):
     auction = Auction.query.get(data['auction_id'])
     bid_amount = float(data['amount'])
 
-    if datetime.utcnow() > auction.end_time:
+    if not auction.end_time or datetime.utcnow() >= auction.end_time:
         return
 
     if bid_amount <= auction.current_price:

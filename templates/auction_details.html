@@ -72,7 +72,7 @@
             {% endif %}
 
             <!-- 💰 BID FORM -->
-            {% if not auction.end_time or now < auction.end_time %}
+            {% if auction.end_time and now < auction.end_time %}
 
             <form method="POST" action="{{ url_for('place_bid', auction_id=auction.id) }}" style="margin-top:15px;">
 
