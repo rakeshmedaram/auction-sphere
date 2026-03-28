@@ -93,7 +93,7 @@ def auction_details(auction_id):
     # 🏆 WINNER LOGIC
     if last_bid and auction.end_time and now >= auction.end_time:
         winner = {
-            "name": last_bid.user.username if last_bid.user else "Unknown",
+            "name": last_bid.user.username,
             "amount": last_bid.amount
         }
 
