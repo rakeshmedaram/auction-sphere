@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AuctionSphere - Modern UI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      min-height: 100vh;
+      color: #fff;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+
+    .btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      background: rgba(255,255,255,0.4);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      padding: 20px;
+    }
+
+    .card img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 12px;
+      margin-bottom: 10px;
+    }
+
+    .card h3 {
+      margin-bottom: 10px;
+    }
+
+    .card p {
+      font-size: 14px;
+      opacity: 0.8;
+      margin-bottom: 10px;
+    }
+
+    .bid-box {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .bid-box input {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+    }
+
+    .create-section {
+      margin-bottom: 30px;
+      padding: 20px;
+    }
+
+    .create-section input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+    }
+
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="navbar">
+    <div class="logo">AuctionSphere</div>
+    <button class="btn" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="create-section glass">
+    <h2>Create Auction</h2>
+    <input type="text" id="title" placeholder="Item Title">
+    <input type="text" id="image" placeholder="Image URL">
+    <input type="number" id="price" placeholder="Starting Price">
+    <button class="btn" onclick="createAuction()">Create</button>
+  </div>
+
+  <div class="grid" id="auctionList"></div>
+</div>
+
+<script>
+  let auctions = [];
+
+  function createAuction() {
+    const title = document.getElementById('title').value;
+    const image = document.getElementById('image').value;
+    const price = document.getElementById('price').value;
+
+    if (!title || !price) return alert('Fill all fields');
+
+    auctions.push({
+      title,
+      image,
+      price: parseFloat(price),
+      highestBid: parseFloat(price)
+    });
+
+    renderAuctions();
+  }
+
+  function renderAuctions() {
+    const list = document.getElementById('auctionList');
+    list.innerHTML = '';
+
+    auctions.forEach((item, index) => {
+      const div = document.createElement('div');
+      div.className = 'card glass';
+
+      div.innerHTML = `
+        <img src="${item.image || 'https://via.placeholder.com/300'}" />
+        <h3>${item.title}</h3>
+        <p>Highest Bid: ₹${item.highestBid}</p>
+        <div class="bid-box">
+          <input type="number" placeholder="Enter bid" id="bid-${index}">
+          <button class="btn" onclick="placeBid(${index})">Bid</button>
+        </div>
+      `;
+
+      list.appendChild(div);
+    });
+  }
+
+  function placeBid(index) {
+    const bidInput = document.getElementById(`bid-${index}`);
+    const bid = parseFloat(bidInput.value);
+
+    if (bid > auctions[index].highestBid) {
+      auctions[index].highestBid = bid;
+      renderAuctions();
+    } else {
+      alert('Bid must be higher');
+    }
+  }
+
+  function logout() {
+    alert('Logged out');
+  }
+</script>
+
+</body>
+</html>
