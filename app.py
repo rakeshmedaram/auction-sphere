@@ -18,6 +18,15 @@ def init_db():
     db = get_db()
 
     db.execute("""
+    CREATE TABLE IF NOT EXISTS users(
+        id INTEGER PRIMARY KEY,
+        email TEXT,
+        username TEXT,
+        password TEXT
+    )
+    """)
+
+    db.execute("""
     CREATE TABLE IF NOT EXISTS auctions(
         id INTEGER PRIMARY KEY,
         title TEXT,
@@ -43,38 +52,106 @@ def init_db():
 
 init_db()
 
+# ---------------- AUTH ----------------
+@app.route("/", methods=["GET","POST"])
+def login():
+    if request.method == "POST":
+        db = get_db()
+        user = db.execute(
+            "SELECT * FROM users WHERE username=? AND password=?",
+            (request.form['username'], request.form['password'])
+        ).fetchone()
+
+        if user:
+            session['user'] = request.form['username']
+            return redirect("/dashboard")
+
+    return render_template("login.html")
+
+@app.route("/register", methods=["GET","POST"])
+def register():
+    if request.method == "POST":
+        db = get_db()
+        db.execute(
+            "INSERT INTO users(email,username,password) VALUES(?,?,?)",
+            (request.form['email'], request.form['username'], request.form['password'])
+        )
+        db.commit()
+        return redirect("/")
+    return render_template("register.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/")
+
 # ---------------- DASHBOARD ----------------
 @app.route("/dashboard")
 def dashboard():
+    if 'user' not in session:
+        return redirect("/")
+
     db = get_db()
-    auctions = db.execute("SELECT * FROM auctions").fetchall()
+    auctions_db = db.execute("SELECT * FROM auctions").fetchall()
 
     now = datetime.datetime.now()
-    data = []
+    auctions = []
 
-    for a in auctions:
-        end = datetime.datetime.strptime(a[4], "%Y-%m-%dT%H:%M")
-        status = "LIVE" if now < end else "CLOSED"
-        data.append((a, status))
+    for a in auctions_db:
+        end_time = datetime.datetime.strptime(a[4], "%Y-%m-%dT%H:%M")
+        status = "LIVE" if now < end_time else "CLOSED"
+        auctions.append((a, status))
 
-    return render_template("dashboard.html", auctions=data)
+    return render_template("dashboard.html", auctions=auctions)
+
+# ---------------- CREATE ----------------
+@app.route("/create", methods=["GET","POST"])
+def create():
+    if 'user' not in session:
+        return redirect("/")
+
+    if request.method == "POST":
+        file = request.files['image']
+        if file.filename == "":
+            return "No file selected"
+
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+        db = get_db()
+        db.execute("""
+        INSERT INTO auctions(title,description,image,end_time,base_price,created_by)
+        VALUES(?,?,?,?,?,?)
+        """, (
+            request.form['title'],
+            request.form['description'],
+            filename,
+            request.form['time'],
+            request.form['base_price'],
+            session['user']
+        ))
+        db.commit()
+        return redirect("/dashboard")
+
+    return render_template("create_auction.html")
 
 # ---------------- AUCTION ----------------
 @app.route("/auction/<int:id>", methods=["GET","POST"])
 def auction(id):
+    if 'user' not in session:
+        return redirect("/")
+
     db = get_db()
     auction = db.execute("SELECT * FROM auctions WHERE id=?", (id,)).fetchone()
 
     end_time = datetime.datetime.strptime(auction[4], "%Y-%m-%dT%H:%M")
     now = datetime.datetime.now()
+    closed = now >= end_time  # 🔴 strict server truth
 
-    # 🔴 STRICT CHECK
-    closed = now >= end_time
-
+    # 🔒 HARD BLOCK (server-side)
     if request.method == "POST":
-        # 🔴 HARD BLOCK
         if datetime.datetime.now() >= end_time:
-            return redirect(f"/auction/{id}")
+            return redirect(f"/auction/{id}")  # refuse silently
 
         try:
             amount = int(request.form['amount'])
@@ -91,13 +168,21 @@ def auction(id):
 
         if highest is None:
             if amount >= base_price:
-                db.execute("INSERT INTO bids VALUES(NULL,?,?,?,?)",
-                           (id, session['user'], amount, now_time))
+                db.execute(
+                    "INSERT INTO bids VALUES(NULL,?,?,?,?)",
+                    (id, session['user'], amount, now_time)
+                )
                 db.commit()
+            else:
+                return "Bid must be >= base price!"
         elif amount > highest:
-            db.execute("INSERT INTO bids VALUES(NULL,?,?,?,?)",
-                       (id, session['user'], amount, now_time))
+            db.execute(
+                "INSERT INTO bids VALUES(NULL,?,?,?,?)",
+                (id, session['user'], amount, now_time)
+            )
             db.commit()
+        else:
+            return "Bid must be higher than current highest!"
 
     bids = db.execute(
         "SELECT * FROM bids WHERE auction_id=? ORDER BY amount DESC",
@@ -106,13 +191,18 @@ def auction(id):
 
     winner = bids[0][2] if closed and bids else None
     highest_amount = bids[0][3] if bids else None
+    highest_bidder = bids[0][2] if bids else None
 
-    return render_template("auction_detail.html",
-                           auction=auction,
-                           bids=bids,
-                           closed=closed,
-                           winner=winner,
-                           highest_amount=highest_amount)
+    return render_template(
+        "auction_detail.html",
+        auction=auction,
+        bids=bids,
+        closed=closed,
+        winner=winner,
+        highest_amount=highest_amount,
+        highest_bidder=highest_bidder
+    )
+
 # ---------------- DELETE ----------------
 @app.route("/delete/<int:id>")
 def delete(id):

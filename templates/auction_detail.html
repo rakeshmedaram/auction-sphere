@@ -5,7 +5,9 @@
 
 <div class="top-section">
 
+<div>
 <img src="/static/uploads/{{auction[3]}}" class="auction-img">
+</div>
 
 <div>
 <h2>{{auction[1]}}</h2>
@@ -13,16 +15,17 @@
 
 <h3>💰 Base Price: ₹{{auction[5]}}</h3>
 
-<h3 id="timer"></h3>
+<h3 id="timer" style="color:#2563eb;"></h3>
 
 {% if closed %}
-<div style="background:#d1fae5;padding:15px;border-radius:10px;">
-<h2>🏆 Winner</h2>
-<p><b>{{winner}}</b></p>
-<p>Final Price: ₹{{highest_amount}}</p>
+<div style="margin-top:15px; padding:15px; background:#d1fae5; border-radius:10px;">
+    <h2 style="color:#065f46;">🏆 Auction Winner</h2>
+    <p><b>{{winner}}</b></p>
+    <p>Final Price: ₹{{highest_amount}}</p>
 </div>
 {% else %}
-<h3>Current Highest: ₹{{highest_amount}}</h3>
+<h3>🔥 Highest Bidder: {{highest_bidder}}</h3>
+<h3>💰 ₹{{highest_amount}}</h3>
 {% endif %}
 
 {% if not closed %}
@@ -31,7 +34,9 @@
     <button id="bidBtn">Bid</button>
 </form>
 {% else %}
-<h3 style="color:red;">⛔ Auction Closed</h3>
+<div style="margin-top:10px;color:red;font-weight:bold;">
+    ⛔ Bidding Closed
+</div>
 {% endif %}
 
 </div>
@@ -41,7 +46,10 @@
 <h3>Bid History</h3>
 <ul>
 {% for b in bids %}
-<li>👤 {{b[2]}} - ₹{{b[3]}} ⏰ {{b[4]}}</li>
+<li>
+👤 {{b[2]}} | 💰 ₹{{b[3]}}
+<span style="color:gray;">⏰ {{b[4]}}</span>
+</li>
 {% endfor %}
 </ul>
 </div>
@@ -58,12 +66,12 @@ function updateTimer() {
     if (distance <= 0) {
         document.getElementById("timer").innerHTML = "⛔ Auction Closed";
 
-        // 🔴 disable instantly
+        // disable instantly
         let btn = document.getElementById("bidBtn");
-        if(btn) btn.disabled = true;
+        if (btn) btn.disabled = true;
 
         let input = document.getElementById("bidInput");
-        if(input) input.disabled = true;
+        if (input) input.disabled = true;
 
         return;
     }
@@ -75,10 +83,10 @@ function updateTimer() {
         "⏳ " + m + "m " + s + "s";
 }
 
-// ⏱ FAST TIMER
+// ⏱ timer every second
 setInterval(updateTimer, 1000);
 
-// 🔥 FAST AUTO REFRESH
+// 🔄 refresh every 2s to show winner fast
 setInterval(function(){
     location.reload();
 }, 2000);
