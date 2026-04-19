@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Create Auction</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="navbar">
+    <h2>AuctionSphere</h2>
+    <a href="/">Home</a>
+</div>
+
+<div class="form-container">
+
+    <div class="form-card">
+
+        <h2>Create Auction</h2>
+
+        <form method="POST" enctype="multipart/form-data">
+
+            <label>Item Name</label>
+            <input type="text" name="title" required>
+            
+            <label>Description</label>
+            <textarea name="description" rows="4" required></textarea>
+
+            <label>Starting Price</label>
+            <input type="number" name="price" required>
+
+            <label>End Time</label>
+            <input type="datetime-local" name="end_time" required>
+
+            <label>Upload Image</label>
+            <input type="file" name="image" required>
+
+            <button type="submit">Create Auction</button>
+
+        </form>
+
+    </div>
+
+</div>
+
+</body>
+</html>
