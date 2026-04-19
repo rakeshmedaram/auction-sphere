@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card" style="max-width:500px;margin:auto;">
+<h2>Create Auction</h2>
+
+<form method="POST" enctype="multipart/form-data" class="form-vertical">
+<input name="title" placeholder="Title">
+<textarea name="description"></textarea>
+<input type="datetime-local" name="time">
+<input name="base_price" placeholder="Base Price">
+<input type="file" name="image">
+<button>Create</button>
+</form>
+
+</div>
+
+{% endblock %}

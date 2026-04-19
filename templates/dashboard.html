@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Auctions</h2>
+<a href="/create"><button>Create Auction</button></a>
+
+<div class="grid">
+
+{% for item in auctions %}
+{% set a = item[0] %}
+{% set status = item[1] %}
+
+<div class="card fade-in">
+
+<img src="/static/uploads/{{a[3]}}" class="card-img">
+
+<h3>{{a[1]}}</h3>
+<p>{{a[2][:60]}}...</p>
+
+{% if status == "LIVE" %}
+<span class="badge live">LIVE</span>
+{% else %}
+<span class="badge closed">CLOSED</span>
+{% endif %}
+
+<div class="card-actions">
+<a href="/auction/{{a[0]}}"><button>View</button></a>
+
+{% if session.get('user') == a[6] %}
+<a href="/delete/{{a[0]}}">
+<button class="delete-btn">Delete</button>
+</a>
+{% endif %}
+</div>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% endblock %}

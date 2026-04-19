@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="card">
+
+<div class="top-section">
+
+<div>
+<img src="/static/uploads/{{auction[3]}}" class="auction-img">
+</div>
+
+<div>
+<h2>{{auction[1]}}</h2>
+<p>{{auction[2]}}</p>
+
+<h3>💰 Base Price: ₹{{auction[5]}}</h3>
+
+<h3 id="timer"></h3>
+
+{% if closed %}
+<span class="badge closed">CLOSED</span>
+<h2>🏆 {{winner}} (₹{{highest_amount}})</h2>
+{% else %}
+<span class="badge live">LIVE</span>
+<h3>🔥 {{highest_bidder}}</h3>
+<h3>₹{{highest_amount}}</h3>
+{% endif %}
+{% if not closed %}
+<form method="POST">
+<input name="amount" placeholder="Enter bid">
+<button>Bid</button>
+</form>
+{% endif %}
+
+</div>
+
+</div>
+
+<div class="bid-history">
+<h3>Bid History</h3>
+<ul>
+{% for b in bids %}
+<li>
+👤 {{b[2]}} | 💰 ₹{{b[3]}}
+<span style="color:lightgray;">⏰ {{b[4]}}</span>
+</li>
+{% endfor %}
+</ul>
+</div>
+
+</div>
+
+<script>
+let endTime = new Date("{{auction[4]}}").getTime();
+
+setInterval(function(){
+let now=new Date().getTime();
+let d=endTime-now;
+
+if(d<0){
+document.getElementById("timer").innerHTML="⛔ Closed";
+return;
+}
+
+let h=Math.floor(d/(1000*60*60));
+let m=Math.floor((d%(1000*60*60))/(1000*60));
+let s=Math.floor((d%(1000*60))/1000);
+
+document.getElementById("timer").innerHTML=
+"⏳ "+h+"h "+m+"m "+s+"s";
+},1000);
+</script>
+
+{% endblock %}
