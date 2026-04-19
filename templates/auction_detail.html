@@ -25,7 +25,7 @@
 </div>
 {% else %}
 <h3>🔥 Highest Bidder: {{highest_bidder}}</h3>
-<h3>💰 ₹{{highest_amount}}</h3>
+<h3>💰 Highest Amount:₹{{highest_amount}}</h3>
 {% endif %}
 
 {% if not closed %}
@@ -89,7 +89,7 @@ setInterval(updateTimer, 1000);
 // 🔄 refresh every 2s to show winner fast
 setInterval(function(){
     location.reload();
-}, 5000);
+}, 10000);
 </script>
 
 {% endblock %}
