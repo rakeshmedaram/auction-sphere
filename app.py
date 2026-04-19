@@ -148,8 +148,15 @@ def auction(id):
     end_time = datetime.datetime.strptime(auction[4], "%Y-%m-%dT%H:%M")
     closed = datetime.datetime.now() > end_time
 
-    if request.method == "POST" and not closed:
-        amount = int(request.form['amount'])
+    # 🔴 HARD BLOCK bidding after end
+    if request.method == "POST":
+        if closed:
+            return "⛔ Auction already ended!"
+
+        try:
+            amount = int(request.form['amount'])
+        except:
+            return "Invalid bid!"
 
         highest = db.execute(
             "SELECT MAX(amount) FROM bids WHERE auction_id=?",
@@ -166,12 +173,13 @@ def auction(id):
                 db.commit()
             else:
                 return "Bid must be >= base price!"
+
         elif amount > highest:
             db.execute("INSERT INTO bids VALUES(NULL,?,?,?,?)",
                        (id, session['user'], amount, now_time))
             db.commit()
         else:
-            return "Bid must be higher!"
+            return "Bid must be higher than current highest!"
 
     bids = db.execute(
         "SELECT * FROM bids WHERE auction_id=? ORDER BY amount DESC",

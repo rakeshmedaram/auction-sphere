@@ -18,18 +18,25 @@
 <h3 id="timer"></h3>
 
 {% if closed %}
-<span class="badge closed">CLOSED</span>
-<h2>🏆 {{winner}} (₹{{highest_amount}})</h2>
+<div style="margin-top:15px; padding:15px; background:#d1fae5; border-radius:10px;">
+    <h2 style="color:#065f46;">🏆 Auction Winner</h2>
+    <p><b>{{winner}}</b> won the auction</p>
+    <p>Final Price: ₹{{highest_amount}}</p>
+</div>
 {% else %}
-<span class="badge live">LIVE</span>
-<h3>🔥 {{highest_bidder}}</h3>
+<h3>🔥 Highest Bidder: {{highest_bidder}}</h3>
 <h3>₹{{highest_amount}}</h3>
 {% endif %}
+
 {% if not closed %}
 <form method="POST">
-<input name="amount" placeholder="Enter bid">
-<button>Bid</button>
+    <input name="amount" placeholder="Enter bid">
+    <button>Bid</button>
 </form>
+{% else %}
+<div style="margin-top:10px;color:red;font-weight:bold;">
+    ⛔ Bidding Closed
+</div>
 {% endif %}
 
 </div>
@@ -42,7 +49,7 @@
 {% for b in bids %}
 <li>
 👤 {{b[2]}} | 💰 ₹{{b[3]}}
-<span style="color:lightgray;">⏰ {{b[4]}}</span>
+<span style="color:gray;">⏰ {{b[4]}}</span>
 </li>
 {% endfor %}
 </ul>
@@ -53,22 +60,24 @@
 <script>
 let endTime = new Date("{{auction[4]}}").getTime();
 
-setInterval(function(){
-let now=new Date().getTime();
-let d=endTime-now;
+let timer = setInterval(function() {
+    let now = new Date().getTime();
+    let distance = endTime - now;
 
-if(d<0){
-document.getElementById("timer").innerHTML="⛔ Closed";
-return;
-}
+    if (distance < 0) {
+        document.getElementById("timer").innerHTML = "⛔ Auction Closed";
+        clearInterval(timer);
+        location.reload();
+        return;
+    }
 
-let h=Math.floor(d/(1000*60*60));
-let m=Math.floor((d%(1000*60*60))/(1000*60));
-let s=Math.floor((d%(1000*60))/1000);
+    let h = Math.floor(distance / (1000 * 60 * 60));
+    let m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    let s = Math.floor((distance % (1000 * 60)) / 1000);
 
-document.getElementById("timer").innerHTML=
-"⏳ "+h+"h "+m+"m "+s+"s";
-},1000);
+    document.getElementById("timer").innerHTML =
+        "⏳ Time Left: " + h + "h " + m + "m " + s + "s";
+}, 1000);
 </script>
 
 {% endblock %}
