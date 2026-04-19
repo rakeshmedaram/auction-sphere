@@ -5,7 +5,7 @@
 <div class="auction-card">
 
     <div class="left">
-        <img src="/uploads/default.png">
+        <img src="{{ url_for('static', filename='uploads/' + (auction.image or 'default.png')) }}">
     </div>
 
     <div class="right">

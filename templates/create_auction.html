@@ -5,13 +5,20 @@
 <div class="form-card">
     <h2>Create Auction</h2>
 
-    <form method="POST">
-        <input type="text" name="name" placeholder="Item Name" required>
-        <input type="number" name="price" placeholder="Base Price" required>
-        <textarea name="description" placeholder="Description"></textarea>
-        <input type="datetime-local" name="end_time" required>
-        <button>Create Auction</button>
-    </form>
+<form method="POST" enctype="multipart/form-data">
+    <input type="text" name="name" placeholder="Item Name" required>
+
+    <input type="number" name="price" placeholder="Base Price" required>
+
+    <textarea name="description" placeholder="Description"></textarea>
+
+    <input type="datetime-local" name="end_time" required>
+
+    <!-- ✅ IMAGE UPLOAD -->
+    <input type="file" name="image" accept="image/*">
+
+    <button>Create Auction</button>
+</form>
 </div>
 
 {% endblock %}

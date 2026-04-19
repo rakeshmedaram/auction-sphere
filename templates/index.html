@@ -7,7 +7,7 @@
 <div class="grid">
     {% for a in auctions %}
     <a href="/auction/{{ a.id }}" class="card">
-        <img src="/uploads/default.png">
+        <img src="{{ url_for('static', filename='uploads/' + (a.image or 'default.png')) }}">
         <h3>{{ a.name }}</h3>
         <p>₹{{ a.price }}</p>
     </a>

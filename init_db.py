@@ -26,12 +26,14 @@ CREATE TABLE auctions (
 
 # BIDS
 c.execute("""
-CREATE TABLE bids (
+CREATE TABLE auctions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    auction_id INTEGER,
-    user_id INTEGER,
-    amount INTEGER,
-    time TEXT
+    name TEXT,
+    price INTEGER,
+    description TEXT,
+    end_time TEXT,
+    created_by INTEGER,
+    image TEXT
 )
 """)
 

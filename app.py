@@ -1,6 +1,13 @@
 from flask import Flask, render_template, request, redirect, session
 import sqlite3
 from datetime import datetime
+import os
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = 'static/uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 app = Flask(__name__)
 app.secret_key = "super-secret-key"
@@ -95,17 +102,23 @@ def create_auction():
         description = request.form['description']
         end_time = request.form['end_time']
 
+        image = request.files.get('image')
+
+        filename = None
+        if image and image.filename != '':
+            filename = secure_filename(image.filename)
+            image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
         db = get_db()
         db.execute(
-            "INSERT INTO auctions (name, price, description, end_time, created_by) VALUES (?, ?, ?, ?, ?)",
-            (name, price, description, end_time, session['user_id'])
+            "INSERT INTO auctions (name, price, description, end_time, created_by, image) VALUES (?, ?, ?, ?, ?, ?)",
+            (name, price, description, end_time, session['user_id'], filename)
         )
         db.commit()
 
         return redirect('/')
 
     return render_template("create_auction.html")
-
 # ---------------- VIEW AUCTION ----------------
 @app.route('/auction/<int:id>')
 def view_auction(id):
