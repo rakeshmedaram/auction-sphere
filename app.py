@@ -105,7 +105,13 @@ def view_auction(id):
                 (id,)
             ).fetchone()
 
-    return render_template("view_auction.html", auction=auction, bids=bids, winner=winner)
+    return render_template(
+    "view_auction.html",
+    auction=auction,
+    bids=bids,
+    winner=winner,
+    now=datetime.now().isoformat()
+)
 
 # DELETE
 @app.route('/delete/<int:id>')
@@ -124,13 +130,26 @@ def delete(id):
 def place_bid(data):
     db = get_db()
 
-    current = db.execute(
-        "SELECT price FROM auctions WHERE id=?",
+    auction = db.execute(
+        "SELECT price, end_time FROM auctions WHERE id=?",
         (data['auction_id'],)
-    ).fetchone()[0]
+    ).fetchone()
 
-    if int(data['amount']) <= current:
-        emit("error", {"msg": "Bid must be higher"})
+    if not auction:
+        emit("error", {"msg": "Auction not found"})
+        return
+
+    current_price = auction[0]
+    end_time = datetime.fromisoformat(auction[1])
+
+    # ❌ BLOCK AFTER END
+    if datetime.now() > end_time:
+        emit("error", {"msg": "Auction has ended"})
+        return
+
+    # ❌ BLOCK LOWER BID
+    if int(data['amount']) <= current_price:
+        emit("error", {"msg": "Bid must be higher than current price"})
         return
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -152,7 +171,6 @@ def place_bid(data):
         "amount": data['amount'],
         "time": now
     }, broadcast=True)
-
-# RUN
+    # RUN
 if __name__ == "__main__":
     socketio.run(app)

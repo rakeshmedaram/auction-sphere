@@ -190,7 +190,7 @@ body {
                 </div>
             {% endif %}
 
-            {% if not winner %}
+            {% if not winner and auction[4] > now %}
             <div class="bid-box">
                 <input type="number" id="bid_amount" placeholder="Enter bid">
                 <button onclick="placeBid()">Bid</button>
