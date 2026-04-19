@@ -5,9 +5,7 @@
 
 <div class="top-section">
 
-<div>
 <img src="/static/uploads/{{auction[3]}}" class="auction-img">
-</div>
 
 <div>
 <h2>{{auction[1]}}</h2>
@@ -18,39 +16,32 @@
 <h3 id="timer"></h3>
 
 {% if closed %}
-<div style="margin-top:15px; padding:15px; background:#d1fae5; border-radius:10px;">
-    <h2 style="color:#065f46;">🏆 Auction Winner</h2>
-    <p><b>{{winner}}</b> won the auction</p>
-    <p>Final Price: ₹{{highest_amount}}</p>
+<div style="background:#d1fae5;padding:15px;border-radius:10px;">
+<h2>🏆 Winner</h2>
+<p><b>{{winner}}</b></p>
+<p>Final Price: ₹{{highest_amount}}</p>
 </div>
 {% else %}
-<h3>🔥 Highest Bidder: {{highest_bidder}}</h3>
-<h3>₹{{highest_amount}}</h3>
+<h3>Current Highest: ₹{{highest_amount}}</h3>
 {% endif %}
 
 {% if not closed %}
 <form method="POST">
-    <input name="amount" placeholder="Enter bid">
-    <button>Bid</button>
+    <input name="amount" id="bidInput" placeholder="Enter bid">
+    <button id="bidBtn">Bid</button>
 </form>
 {% else %}
-<div style="margin-top:10px;color:red;font-weight:bold;">
-    ⛔ Bidding Closed
-</div>
+<h3 style="color:red;">⛔ Auction Closed</h3>
 {% endif %}
 
 </div>
-
 </div>
 
 <div class="bid-history">
 <h3>Bid History</h3>
 <ul>
 {% for b in bids %}
-<li>
-👤 {{b[2]}} | 💰 ₹{{b[3]}}
-<span style="color:gray;">⏰ {{b[4]}}</span>
-</li>
+<li>👤 {{b[2]}} - ₹{{b[3]}} ⏰ {{b[4]}}</li>
 {% endfor %}
 </ul>
 </div>
@@ -60,24 +51,37 @@
 <script>
 let endTime = new Date("{{auction[4]}}").getTime();
 
-let timer = setInterval(function() {
+function updateTimer() {
     let now = new Date().getTime();
     let distance = endTime - now;
 
-    if (distance < 0) {
+    if (distance <= 0) {
         document.getElementById("timer").innerHTML = "⛔ Auction Closed";
-        clearInterval(timer);
-        location.reload();
+
+        // 🔴 disable instantly
+        let btn = document.getElementById("bidBtn");
+        if(btn) btn.disabled = true;
+
+        let input = document.getElementById("bidInput");
+        if(input) input.disabled = true;
+
         return;
     }
 
-    let h = Math.floor(distance / (1000 * 60 * 60));
     let m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
     let s = Math.floor((distance % (1000 * 60)) / 1000);
 
     document.getElementById("timer").innerHTML =
-        "⏳ Time Left: " + h + "h " + m + "m " + s + "s";
-}, 1000);
+        "⏳ " + m + "m " + s + "s";
+}
+
+// ⏱ FAST TIMER
+setInterval(updateTimer, 1000);
+
+// 🔥 FAST AUTO REFRESH
+setInterval(function(){
+    location.reload();
+}, 2000);
 </script>
 
 {% endblock %}
