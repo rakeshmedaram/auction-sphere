@@ -1,88 +1,91 @@
-from flask import Flask, render_template, request, redirect, session, send_from_directory
-import sqlite3, os
+from flask import Flask, render_template, request, redirect, session
+import sqlite3
 from datetime import datetime
-from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
-app.secret_key = "secret123"
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.secret_key = "secret"
 
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
+# ---------------- DB ----------------
 def get_db():
-    return sqlite3.connect("database.db", check_same_thread=False)
+    conn = sqlite3.connect("database.db")
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# IMAGE ROUTE
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
-
-# HOME
+# ---------------- HOME ----------------
 @app.route('/')
 def home():
     db = get_db()
     auctions = db.execute("SELECT * FROM auctions").fetchall()
-    return render_template("index.html", auctions=auctions)
+    return render_template("index.html", auctions=auctions, now=datetime.now())
 
-# REGISTER
+# ---------------- REGISTER ----------------
 @app.route('/register', methods=['GET','POST'])
 def register():
     if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
         db = get_db()
         db.execute(
-            "INSERT INTO users(username,password,role) VALUES (?,?,?)",
-            (request.form['username'], request.form['password'], 'user')
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            (username, password)
         )
         db.commit()
+
         return redirect('/login')
+
     return render_template("register.html")
 
-# LOGIN
+# ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
         db = get_db()
         user = db.execute(
             "SELECT * FROM users WHERE username=? AND password=?",
-            (request.form['username'], request.form['password'])
+            (username, password)
         ).fetchone()
 
         if user:
-            session['user'] = user[1]
+            session['user_id'] = user['id']
+            session['username'] = user['username']
             return redirect('/')
 
     return render_template("login.html")
 
-# CREATE AUCTION
+# ---------------- LOGOUT ----------------
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/login')
+
+# ---------------- CREATE AUCTION ----------------
 @app.route('/create_auction', methods=['GET','POST'])
 def create_auction():
-    if 'user' not in session:
+    if 'user_id' not in session:
         return redirect('/login')
 
     if request.method == 'POST':
-        file = request.files['image']
-        filename = file.filename
-        file.save(os.path.join(UPLOAD_FOLDER, filename))
+        name = request.form['name']
+        price = int(request.form['price'])
+        description = request.form['description']
+        end_time = request.form['end_time']
 
         db = get_db()
         db.execute(
-            "INSERT INTO auctions(title,price,image,end_time,owner,description) VALUES (?,?,?,?,?,?)",
-            (
-                request.form['title'],
-                request.form['price'],
-                filename,
-                request.form['end_time'],
-                session['user'],
-                request.form['description']
-            )
+            "INSERT INTO auctions (name, price, description, end_time, created_by) VALUES (?, ?, ?, ?, ?)",
+            (name, price, description, end_time, session['user_id'])
         )
         db.commit()
+
         return redirect('/')
 
     return render_template("create_auction.html")
 
-# VIEW AUCTION
+# ---------------- VIEW AUCTION ----------------
 @app.route('/auction/<int:id>')
 def view_auction(id):
     db = get_db()
@@ -93,84 +96,83 @@ def view_auction(id):
     ).fetchone()
 
     bids = db.execute(
-        "SELECT user, amount, time FROM bids WHERE auction_id=? ORDER BY id DESC",
+        """SELECT users.username, bids.amount, bids.time
+           FROM bids
+           JOIN users ON bids.user_id = users.id
+           WHERE auction_id=?
+           ORDER BY amount DESC""",
         (id,)
     ).fetchall()
 
+    # -------- WINNER LOGIC --------
     winner = None
-    if auction:
-        if datetime.now() > datetime.fromisoformat(auction[4]):
-            winner = db.execute(
-                "SELECT user, MAX(amount) FROM bids WHERE auction_id=?",
-                (id,)
-            ).fetchone()
+    end_time = datetime.fromisoformat(auction['end_time'])
+
+    if datetime.now() > end_time and bids:
+        winner = bids[0]
 
     return render_template(
-    "view_auction.html",
-    auction=auction,
-    bids=bids,
-    winner=winner,
-    now=datetime.now().isoformat()
-)
+        "view_auction.html",
+        auction=auction,
+        bids=bids,
+        winner=winner,
+        now=datetime.now()
+    )
 
-# DELETE
-@app.route('/delete/<int:id>')
-def delete(id):
-    db = get_db()
-    auction = db.execute("SELECT owner FROM auctions WHERE id=?", (id,)).fetchone()
+# ---------------- BID ----------------
+@app.route('/bid/<int:id>', methods=['POST'])
+def bid(id):
+    if 'user_id' not in session:
+        return redirect('/login')
 
-    if auction and auction[0] == session.get("user"):
-        db.execute("DELETE FROM auctions WHERE id=?", (id,))
-        db.commit()
-
-    return redirect('/')
-
-# REAL-TIME BID
-@socketio.on("place_bid")
-def place_bid(data):
+    amount = int(request.form['amount'])
     db = get_db()
 
     auction = db.execute(
-        "SELECT price, end_time FROM auctions WHERE id=?",
-        (data['auction_id'],)
+        "SELECT * FROM auctions WHERE id=?",
+        (id,)
     ).fetchone()
 
-    if not auction:
-        emit("error", {"msg": "Auction not found"})
-        return
+    end_time = datetime.fromisoformat(auction['end_time'])
 
-    current_price = auction[0]
-    end_time = datetime.fromisoformat(auction[1])
-
-    # ❌ BLOCK AFTER END
+    # ❌ STOP AFTER END
     if datetime.now() > end_time:
-        emit("error", {"msg": "Auction has ended"})
-        return
+        return "Auction ended ❌"
 
-    # ❌ BLOCK LOWER BID
-    if int(data['amount']) <= current_price:
-        emit("error", {"msg": "Bid must be higher than current price"})
-        return
+    base_price = auction['price']
 
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    highest = db.execute(
+        "SELECT MAX(amount) as max_bid FROM bids WHERE auction_id=?",
+        (id,)
+    ).fetchone()['max_bid']
 
+    # ❌ VALIDATION
+    if highest:
+        if amount <= highest:
+            return "Bid must be higher than current bid ❌"
+    else:
+        if amount < base_price:
+            return "Bid must be >= base price ❌"
+
+    # ✅ SAVE BID
     db.execute(
-        "INSERT INTO bids(auction_id,user,amount,time) VALUES (?,?,?,?)",
-        (data['auction_id'], data['user'], data['amount'], now)
+        "INSERT INTO bids (auction_id, user_id, amount, time) VALUES (?, ?, ?, ?)",
+        (id, session['user_id'], amount, datetime.now())
     )
-
-    db.execute(
-        "UPDATE auctions SET price=? WHERE id=?",
-        (data['amount'], data['auction_id'])
-    )
-
     db.commit()
 
-    emit("new_bid", {
-        "user": data['user'],
-        "amount": data['amount'],
-        "time": now
-    }, broadcast=True)
-    # RUN
-if __name__ == "__main__":
-    socketio.run(app)
+    return redirect(f'/auction/{id}')
+
+# ---------------- DELETE ----------------
+@app.route('/delete/<int:id>')
+def delete(id):
+    db = get_db()
+    db.execute("DELETE FROM auctions WHERE id=?", (id,))
+    db.execute("DELETE FROM bids WHERE auction_id=?", (id,))
+    db.commit()
+
+    return redirect('/')
+
+# ---------------- RUN ----------------
+if __name__ == '__main__':
+    app.run(debug=True)
