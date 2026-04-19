@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="auction-card">
+
+    <div class="left">
+        <img src="{{ url_for('static', filename='uploads/' + (auction.image or 'default.png')) }}">
+    </div>
+
+    <div class="right">
+        <h2>{{ auction.name }}</h2>
+        <h3>₹{{ auction.price }}</h3>
+
+        <p>{{ auction.description }}</p>
+
+        <p>
+            ⏳ 
+            {% if now > auction.end_time|tojson %}
+                Ended
+            {% else %}
+                Running
+            {% endif %}
+        </p>
+
+        <!-- WINNER -->
+        {% if winner %}
+        <div class="winner">
+            🏆 Winner: {{ winner[0] }} (₹{{ winner[1] }})
+        </div>
+        {% endif %}
+
+        <!-- BID -->
+        {% if not winner %}
+        <form method="POST" action="/bid/{{ auction.id }}">
+            <input type="number" name="amount" placeholder="Enter bid" required>
+            <button>Bid</button>
+        </form>
+        {% else %}
+        <p class="ended">Auction Closed</p>
+        {% endif %}
+
+        <a href="/delete/{{ auction.id }}" class="delete">Delete</a>
+
+    </div>
+</div>
+
+<!-- BID HISTORY -->
+<h3>Bid History</h3>
+
+<div class="history">
+    {% for b in bids %}
+    <div class="history-item">
+        <b>{{ b[0] }}</b>
+        ₹{{ b[1] }}
+        <span>{{ b[2] }}</span>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

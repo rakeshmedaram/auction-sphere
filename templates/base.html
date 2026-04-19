@@ -1,23 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
+<<<<<<< HEAD
 <link rel="stylesheet" href="/static/style.css">
+=======
+    <title>AuctionSphere</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+>>>>>>> a4a507517e0c8bbb102fcc5be64a3bed3af99863
 </head>
 <body>
 
 <div class="navbar">
+<<<<<<< HEAD
     <a href="/dashboard">🏠 Auction Sphere</a>
 
     <div class="nav-right">
         {% if session.get('user') %}
             <span>👤 {{session['user']}}</span>
             <a href="/logout">Logout</a>
+=======
+    <h2>AuctionSphere</h2>
+
+    <div class="nav-right">
+        {% if user %}
+            <span>{{ user }}</span>
+            <a href="/create_auction">Sell</a>
+            <a href="/logout">Logout</a>
+        {% else %}
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+>>>>>>> a4a507517e0c8bbb102fcc5be64a3bed3af99863
         {% endif %}
     </div>
 </div>
 
 <div class="container">
+<<<<<<< HEAD
 {% block content %}{% endblock %}
+=======
+    {% block content %}{% endblock %}
+>>>>>>> a4a507517e0c8bbb102fcc5be64a3bed3af99863
 </div>
 
 </body>

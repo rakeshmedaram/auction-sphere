@@ -1,3 +1,10 @@
+<<<<<<< HEAD
 Flask
 gunicorn
 werkzeug
+=======
+flask
+flask-socketio
+eventlet
+gunicorn
+>>>>>>> a4a507517e0c8bbb102fcc5be64a3bed3af99863

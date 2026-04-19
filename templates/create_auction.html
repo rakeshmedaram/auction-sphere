@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends 'base.html' %}
 {% block content %}
 
@@ -13,6 +14,29 @@
 <button>Create</button>
 </form>
 
+=======
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="form-card">
+    <h2>Create Auction</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    <input type="text" name="name" placeholder="Item Name" required>
+
+    <input type="number" name="price" placeholder="Base Price" required>
+
+    <textarea name="description" placeholder="Description"></textarea>
+
+    <input type="datetime-local" name="end_time" required>
+
+    <!-- ✅ IMAGE UPLOAD -->
+    <input type="file" name="image" accept="image/*">
+
+    <button>Create Auction</button>
+</form>
+>>>>>>> a4a507517e0c8bbb102fcc5be64a3bed3af99863
 </div>
 
 {% endblock %}
