@@ -1,46 +1,17 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Auction Sphere</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=6">
-</head>
-<body>
+{% extends "base.html" %}
 
-<div class="navbar">
-<h2>AuctionSphere</h2>
-<input type="text" id="search" placeholder="Search items...">
+{% block content %}
 
-<div>
-{% if session.get('user') %}
-<span>{{ session['user'] }}</span>
-<a href="/create_auction">Sell</a>
-<a href="/logout">Logout</a>
-{% else %}
-<a href="/login">Login</a>
-<a href="/register">Register</a>
-{% endif %}
-</div>
-</div>
+<h2>Live Auctions</h2>
 
 <div class="grid">
-
-{% for auction in auctions %}
-<a href="/auction/{{ auction[0] }}" style="text-decoration:none;color:black;">
-<div class="card">
-
-<img src="/uploads/{{ auction[3] }}" class="card-img">
-
-<div class="card-body">
-<h3>{{ auction[1] }}</h3>
-<p class="price">₹{{ auction[2] }}</p>
-<p class="owner">By {{ auction[5] }}</p>
+    {% for a in auctions %}
+    <a href="/auction/{{ a.id }}" class="card">
+        <img src="/uploads/default.png">
+        <h3>{{ a.name }}</h3>
+        <p>₹{{ a.price }}</p>
+    </a>
+    {% endfor %}
 </div>
 
-</div>
-</a>
-{% endfor %}
-
-</div>
-
-</body>
-</html>
+{% endblock %}

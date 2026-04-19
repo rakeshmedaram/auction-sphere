@@ -3,7 +3,7 @@ import sqlite3
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = "secret"
+app.secret_key = "super-secret-key"
 
 # ---------------- DB ----------------
 def get_db():
@@ -16,29 +16,48 @@ def get_db():
 def home():
     db = get_db()
     auctions = db.execute("SELECT * FROM auctions").fetchall()
-    return render_template("index.html", auctions=auctions, now=datetime.now())
+
+    return render_template(
+        "index.html",
+        auctions=auctions,
+        now=datetime.now(),
+        user=session.get('username')
+    )
 
 # ---------------- REGISTER ----------------
 @app.route('/register', methods=['GET','POST'])
 def register():
+    error = None
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
         db = get_db()
-        db.execute(
-            "INSERT INTO users (username, password) VALUES (?, ?)",
-            (username, password)
-        )
-        db.commit()
 
-        return redirect('/login')
+        # check if user exists
+        existing = db.execute(
+            "SELECT * FROM users WHERE username=?",
+            (username,)
+        ).fetchone()
 
-    return render_template("register.html")
+        if existing:
+            error = "Username already exists ❌"
+        else:
+            db.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, password)
+            )
+            db.commit()
+            return redirect('/login')
+
+    return render_template("register.html", error=error)
 
 # ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET','POST'])
 def login():
+    error = None
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -53,8 +72,10 @@ def login():
             session['user_id'] = user['id']
             session['username'] = user['username']
             return redirect('/')
+        else:
+            error = "Invalid username or password ❌"
 
-    return render_template("login.html")
+    return render_template("login.html", error=error)
 
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
@@ -104,7 +125,6 @@ def view_auction(id):
         (id,)
     ).fetchall()
 
-    # -------- WINNER LOGIC --------
     winner = None
     end_time = datetime.fromisoformat(auction['end_time'])
 
@@ -135,7 +155,6 @@ def bid(id):
 
     end_time = datetime.fromisoformat(auction['end_time'])
 
-    # ❌ STOP AFTER END
     if datetime.now() > end_time:
         return "Auction ended ❌"
 
@@ -146,7 +165,6 @@ def bid(id):
         (id,)
     ).fetchone()['max_bid']
 
-    # ❌ VALIDATION
     if highest:
         if amount <= highest:
             return "Bid must be higher than current bid ❌"
@@ -154,7 +172,6 @@ def bid(id):
         if amount < base_price:
             return "Bid must be >= base price ❌"
 
-    # ✅ SAVE BID
     db.execute(
         "INSERT INTO bids (auction_id, user_id, amount, time) VALUES (?, ?, ?, ?)",
         (id, session['user_id'], amount, datetime.now())
@@ -170,7 +187,6 @@ def delete(id):
     db.execute("DELETE FROM auctions WHERE id=?", (id,))
     db.execute("DELETE FROM bids WHERE auction_id=?", (id,))
     db.commit()
-
     return redirect('/')
 
 # ---------------- RUN ----------------
